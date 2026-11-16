@@ -66,6 +66,11 @@
                 <span class="badge bg-warning text-dark ms-auto small">BARU</span>
             </a>
         </li>
+        <li>
+            <a href="../BulkEmailServlet" <%= requestURI.contains("BulkEmailServlet") ? "class=\"active\"" : "" %>>
+                <i class="bi bi-envelope-paper"></i>Pengingat Email
+            </a>
+        </li>
         <li><hr class="sidebar-divider bg-white opacity-25 my-2"></li>
         <li class="sidebar-heading text-white-50 small">REPORTING</li>
         <li>
