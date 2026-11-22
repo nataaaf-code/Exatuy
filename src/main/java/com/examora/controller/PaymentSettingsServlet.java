@@ -65,6 +65,11 @@ public class PaymentSettingsServlet extends HttpServlet {
 
         String action = request.getParameter("action");
         if ("checkout".equalsIgnoreCase(action)) {
+            // F9: halaman checkout hanya untuk siswa; pengelola memakai halaman pengaturan.
+            if (isAdminViewer(currentUser)) {
+                response.sendRedirect(request.getContextPath() + "/PaymentSettingsServlet?action=settings");
+                return;
+            }
             showStudentCheckout(request, response, currentUser);
             return;
         }
@@ -384,6 +389,11 @@ public class PaymentSettingsServlet extends HttpServlet {
 
     private static boolean ownsOrder(Object[] order, User user) {
         return user.getId() != null && user.getId().equals(order[8]);
+    }
+
+    /** F9: pengelola (admin/owner) tidak memakai halaman checkout siswa. */
+    static boolean isAdminViewer(User user) {
+        return user != null && (user.isAdmin() || "owner".equals(user.getRole()));
     }
 
     /**
