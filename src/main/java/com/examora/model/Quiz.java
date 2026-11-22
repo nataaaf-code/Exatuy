@@ -19,6 +19,7 @@ public class Quiz {
     private LocalDateTime deadline; // deadline for taking the quiz
     private LocalDateTime startTime; // scheduled start time for auto-publish
     private String targetTag; // target tag for quiz visibility (null = all users)
+    private String subject; // Mata pelajaran (Matematika, IPA, dll)
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private Integer questionCount; // for display purposes
@@ -120,6 +121,40 @@ public class Quiz {
 
     public void setTargetTag(String targetTag) {
         this.targetTag = targetTag;
+    }
+
+    public String getSubject() {
+        return subject;
+    }
+
+    public void setSubject(String subject) {
+        this.subject = subject;
+    }
+
+    /**
+     * Returns explicit subject if set, otherwise infers common subjects from title/description.
+     */
+    public String getEffectiveSubject() {
+        if (subject != null && !subject.trim().isEmpty()) {
+            return subject.trim();
+        }
+        String text = ((title != null ? title : "") + " " + (description != null ? description : "")).toLowerCase();
+        if (text.contains("matematika") || text.contains("math") || text.contains("aljabar") || text.contains("geometri") || text.contains("aritmatika")) {
+            return "Matematika";
+        }
+        if (text.contains("ipa") || text.contains("fisika") || text.contains("biologi") || text.contains("kimia") || text.contains("sains")) {
+            return "IPA";
+        }
+        if (text.contains("bahasa indonesia") || text.contains("b. indonesia") || text.contains("b.indo")) {
+            return "Bahasa Indonesia";
+        }
+        if (text.contains("bahasa inggris") || text.contains("english") || text.contains("b. inggris")) {
+            return "Bahasa Inggris";
+        }
+        if (text.contains("ips") || text.contains("sejarah") || text.contains("geografi") || text.contains("ekonomi")) {
+            return "IPS";
+        }
+        return "Umum";
     }
 
     public LocalDateTime getCreatedAt() {

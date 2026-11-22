@@ -430,6 +430,26 @@ public class UserDAO {
             user.setPerfectScores(0);
         }
 
+        // Quota wallet & grade level (backward-compatible if migration not yet applied)
+        try {
+            int qb = rs.getInt("quota_balance");
+            user.setQuotaBalance(rs.wasNull() ? 0 : qb);
+        } catch (SQLException e) {
+            user.setQuotaBalance(0);
+        }
+
+        try {
+            user.setGradeLevel(rs.getString("grade_level"));
+        } catch (SQLException e) {
+            user.setGradeLevel(null);
+        }
+
+        try {
+            user.setLastResetMonth(rs.getString("last_reset_month"));
+        } catch (SQLException e) {
+            user.setLastResetMonth(null);
+        }
+
         user.setCreatedAt(rs.getTimestamp("created_at").toLocalDateTime());
         user.setUpdatedAt(rs.getTimestamp("updated_at").toLocalDateTime());
         return user;

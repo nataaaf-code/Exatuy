@@ -116,6 +116,7 @@ public class TranscriptServlet extends HttpServlet {
         // Parse filters
         List<Integer> quizIdFilter = parseQuizIds(request.getParameterValues("quizIds"));
         String tagFilter = request.getParameter("tagFilter");
+        String subjectFilter = request.getParameter("subjectFilter");
         String userIdParam = request.getParameter("userIdFilter");
         String sortBy = request.getParameter("sortBy");
 
@@ -131,20 +132,31 @@ public class TranscriptServlet extends HttpServlet {
         }
 
         // Determine which quizzes to show as columns.
-        // If quizIdFilter provided, only those quizzes appear as columns.
-        // Otherwise, all quizzes in DB appear as columns.
+        // Filter by subjectFilter first if specified, then by quizIdFilter if specified.
         List<Quiz> allQuizzes = filterOutTestQuizzes(quizDAO.findAll());
+        Set<String> allSubjectsSet = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+        allSubjectsSet.add("Matematika");
+        allSubjectsSet.add("IPA");
+        for (Quiz q : allQuizzes) {
+            String eff = q.getEffectiveSubject();
+            if (eff != null && !eff.isEmpty()) {
+                allSubjectsSet.add(eff);
+            }
+        }
+        List<String> allSubjects = new ArrayList<>(allSubjectsSet);
+
+        List<Quiz> subjectFilteredQuizzes = filterQuizzesBySubject(allQuizzes, subjectFilter);
         List<Quiz> columnQuizzes;
         if (quizIdFilter != null && !quizIdFilter.isEmpty()) {
             Set<Integer> filterSet = new LinkedHashSet<>(quizIdFilter);
             columnQuizzes = new ArrayList<>();
-            for (Quiz q : allQuizzes) {
+            for (Quiz q : subjectFilteredQuizzes) {
                 if (q.getId() != null && filterSet.contains(q.getId())) {
                     columnQuizzes.add(q);
                 }
             }
         } else {
-            columnQuizzes = allQuizzes;
+            columnQuizzes = subjectFilteredQuizzes;
         }
 
         // Fetch raw score rows (only for the columns we care about)
@@ -152,11 +164,17 @@ public class TranscriptServlet extends HttpServlet {
         for (Quiz q : columnQuizzes) {
             if (q.getId() != null) quizIdsForQuery.add(q.getId());
         }
-        List<Map<String, Object>> rows = submissionDAO.getTranscriptScores(
-                quizIdsForQuery.isEmpty() ? null : quizIdsForQuery,
-                tagFilter,
-                userIdFilter
-        );
+        List<Map<String, Object>> rows;
+        if (subjectFilter != null && !subjectFilter.trim().isEmpty() && quizIdsForQuery.isEmpty()) {
+            // Subject selected has no matching quizzes -> return empty result so empty state renders
+            rows = new ArrayList<>();
+        } else {
+            rows = submissionDAO.getTranscriptScores(
+                    quizIdsForQuery.isEmpty() ? null : quizIdsForQuery,
+                    tagFilter,
+                    userIdFilter
+            );
+        }
 
         // Build matrix: userId -> (quizId -> submission map)
         // Use LinkedHashMap to preserve DB order (already ordered by user name then submission time desc)
@@ -222,6 +240,8 @@ public class TranscriptServlet extends HttpServlet {
         request.setAttribute("userOverallAverages", userOverallAverages);
         request.setAttribute("userAttemptCounts", userAttemptCounts);
         request.setAttribute("totalColumnQuizzes", totalColumnQuizzes);
+        request.setAttribute("allSubjects", allSubjects);
+        request.setAttribute("selectedSubjectFilter", subjectFilter != null ? subjectFilter.trim() : "");
         request.setAttribute("selectedTagFilter", tagFilter != null ? tagFilter : "");
         request.setAttribute("selectedUserIdFilter", userIdFilter != null ? String.valueOf(userIdFilter) : "");
         request.setAttribute("selectedQuizIds", quizIdFilter != null ? quizIdFilter : new ArrayList<Integer>());
@@ -264,6 +284,23 @@ public class TranscriptServlet extends HttpServlet {
     }
 
     /**
+     * Filter quizzes by subject (case-insensitive match against effective subject).
+     */
+    private List<Quiz> filterQuizzesBySubject(List<Quiz> quizzes, String subjectFilter) {
+        if (subjectFilter == null || subjectFilter.trim().isEmpty()) {
+            return quizzes;
+        }
+        String target = subjectFilter.trim();
+        List<Quiz> result = new ArrayList<>();
+        for (Quiz q : quizzes) {
+            if (target.equalsIgnoreCase(q.getEffectiveSubject())) {
+                result.add(q);
+            }
+        }
+        return result;
+    }
+
+    /**
      * Exclude quizzes whose title starts with "Test Quiz" (case-insensitive)
      * from the transcript — these are placeholder/trial quizzes that should
      * not appear in a participant's official score transcript.
@@ -296,6 +333,7 @@ public class TranscriptServlet extends HttpServlet {
         // Peserta can only export their own data
         List<Integer> quizIdFilter = parseQuizIds(request.getParameterValues("quizIds"));
         String tagFilter = request.getParameter("tagFilter");
+        String subjectFilter = request.getParameter("subjectFilter");
         String userIdParam = request.getParameter("userIdFilter");
         String sortBy = request.getParameter("sortBy");
 
@@ -310,30 +348,36 @@ public class TranscriptServlet extends HttpServlet {
             }
         }
 
-        // Determine column quizzes
+        // Determine column quizzes (filtered by subject if specified)
         List<Quiz> allQuizzes = filterOutTestQuizzes(quizDAO.findAll());
+        List<Quiz> subjectFilteredQuizzes = filterQuizzesBySubject(allQuizzes, subjectFilter);
         List<Quiz> columnQuizzes;
         if (quizIdFilter != null && !quizIdFilter.isEmpty()) {
             Set<Integer> filterSet = new LinkedHashSet<>(quizIdFilter);
             columnQuizzes = new ArrayList<>();
-            for (Quiz q : allQuizzes) {
+            for (Quiz q : subjectFilteredQuizzes) {
                 if (q.getId() != null && filterSet.contains(q.getId())) {
                     columnQuizzes.add(q);
                 }
             }
         } else {
-            columnQuizzes = allQuizzes;
+            columnQuizzes = subjectFilteredQuizzes;
         }
 
         List<Integer> quizIdsForQuery = new ArrayList<>();
         for (Quiz q : columnQuizzes) {
             if (q.getId() != null) quizIdsForQuery.add(q.getId());
         }
-        List<Map<String, Object>> rows = submissionDAO.getTranscriptScores(
-                quizIdsForQuery.isEmpty() ? null : quizIdsForQuery,
-                tagFilter,
-                userIdFilter
-        );
+        List<Map<String, Object>> rows;
+        if (subjectFilter != null && !subjectFilter.trim().isEmpty() && quizIdsForQuery.isEmpty()) {
+            rows = new ArrayList<>();
+        } else {
+            rows = submissionDAO.getTranscriptScores(
+                    quizIdsForQuery.isEmpty() ? null : quizIdsForQuery,
+                    tagFilter,
+                    userIdFilter
+            );
+        }
 
         // Build ordered users + score lookup
         Map<Integer, Map<String, Object>> usersIndex = new LinkedHashMap<>();

@@ -969,6 +969,19 @@ a:hover {
     
     .main-content {
         margin-left: 0;
+        padding: 4.25rem 1rem 1.5rem;
+    }
+
+    .sidebar-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.45);
+        z-index: 999;
+        display: none;
+    }
+
+    .sidebar-overlay.show {
+        display: block;
     }
     
     .sidebar-toggle {
@@ -1094,3 +1107,36 @@ a:hover {
 .shadow-soft { box-shadow: var(--shadow-soft) !important; }
 .shadow-medium { box-shadow: var(--shadow-medium) !important; }
 .shadow-hover { box-shadow: var(--shadow-hover) !important; }
+
+/* ============================================
+   QUOTA HEADER PILL & RESPONSIVE POLISH
+   ============================================ */
+
+.quota-header-pill {
+    background: rgba(255, 255, 255, 0.16);
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    color: #ffffff !important;
+    transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.quota-header-pill:hover {
+    background: rgba(255, 255, 255, 0.26);
+    color: #ffffff !important;
+    transform: translateY(-1px);
+}
+
+.table-responsive {
+    -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 575.98px) {
+    .main-content {
+        padding: 4rem 0.75rem 1.25rem;
+    }
+    .page-header h1, .main-content h1.h3 {
+        font-size: 1.3rem;
+    }
+    .card-header {
+        padding: 0.75rem 1rem;
+    }
+}

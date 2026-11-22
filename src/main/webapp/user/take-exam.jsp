@@ -588,13 +588,134 @@
 
         .mobile-nav-close { display: none; }
 
-        /* ==================== QUESTION IMAGE ==================== */
+        /* ==================== QUESTION IMAGE & ZOOM (P2 #24) ==================== */
+        .question-image-wrap {
+            position: relative;
+            display: inline-block;
+            max-width: 100%;
+            margin-bottom: 1.25rem;
+            cursor: zoom-in;
+        }
         .question-image {
             max-width: 100%;
             max-height: 400px;
             border-radius: var(--radius-sm);
-            margin-bottom: 1.25rem;
             border: 1px solid var(--border-light);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            display: block;
+        }
+        .question-image-wrap:hover .question-image {
+            box-shadow: var(--shadow-md);
+            transform: scale(1.01);
+        }
+        .question-image-hint {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            margin-top: 0.45rem;
+            font-size: 0.78rem;
+            color: var(--ink-muted);
+            background: var(--surface-raised);
+            border: 1px solid var(--border);
+            padding: 0.2rem 0.65rem;
+            border-radius: 50px;
+        }
+        .img-zoom-backdrop {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 10050;
+            background: rgba(15, 23, 42, 0.88);
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+        .img-zoom-backdrop.open {
+            display: flex;
+        }
+        .img-zoom-toolbar {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.75rem;
+            background: rgba(255, 255, 255, 0.14);
+            padding: 0.4rem 0.75rem;
+            border-radius: 50px;
+            backdrop-filter: blur(6px);
+        }
+        .img-zoom-toolbar button {
+            background: #ffffff;
+            color: #1a1d2e;
+            border: none;
+            border-radius: 50px;
+            padding: 0.3rem 0.75rem;
+            font-size: 0.82rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .img-zoom-toolbar button:hover {
+            background: #eef1ff;
+            color: #4361ee;
+        }
+        .img-zoom-stage {
+            max-width: 94vw;
+            max-height: 80vh;
+            overflow: auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 10px;
+        }
+        .img-zoom-stage img {
+            max-width: 100%;
+            max-height: 78vh;
+            border-radius: 8px;
+            transition: transform 0.2s ease;
+            transform-origin: center center;
+        }
+
+        /* ==================== OFFLINE SYNC BANNER (P2 #25) ==================== */
+        .offline-sync-banner {
+            display: none;
+            position: fixed;
+            top: 118px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1002;
+            padding: 0.45rem 1rem;
+            border-radius: 50px;
+            font-size: 0.82rem;
+            font-weight: 600;
+            box-shadow: var(--shadow-md);
+            white-space: nowrap;
+            max-width: 92vw;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .offline-sync-banner.offline {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.45rem;
+            background: #fef3c7;
+            color: #92400e;
+            border: 1.5px solid #f59e0b;
+        }
+        .offline-sync-banner.syncing {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.45rem;
+            background: #eef1ff;
+            color: #4361ee;
+            border: 1.5px solid #4361ee;
+        }
+        .offline-sync-banner.synced {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.45rem;
+            background: #ecfdf5;
+            color: #065f46;
+            border: 1.5px solid #06d6a0;
         }
 
         /* ==================== RESPONSIVE ==================== */
@@ -664,6 +785,9 @@
     <div class="save-indicator" id="saveIndicator">
         <span id="saveStatus"></span>
     </div>
+
+    <!-- Offline / LocalStorage Sync Banner (P2 #25) -->
+    <div class="offline-sync-banner" id="offlineSyncBanner" role="status" aria-live="polite"></div>
 
     <!-- Exam Header -->
     <div class="exam-header">
@@ -827,6 +951,19 @@
         </div>
     </div>
 
+    <!-- Image Zoom Lightbox Modal (P2 #24) -->
+    <div class="img-zoom-backdrop" id="imageZoomModal" onclick="if (event.target === this) closeImageZoom();">
+        <div class="img-zoom-toolbar">
+            <button type="button" onclick="adjustImageZoom(-0.25)" title="Perkecil"><i class="bi bi-zoom-out"></i></button>
+            <button type="button" onclick="resetImageZoom()" title="Reset 100%"><span id="zoomLevelLabel">100%</span></button>
+            <button type="button" onclick="adjustImageZoom(0.25)" title="Perbesar"><i class="bi bi-zoom-in"></i></button>
+            <button type="button" onclick="closeImageZoom()" title="Tutup"><i class="bi bi-x-lg"></i> Tutup</button>
+        </div>
+        <div class="img-zoom-stage">
+            <img id="zoomedImageEl" src="" alt="Preview Gambar Soal" oncontextmenu="return false;" ondragstart="return false;">
+        </div>
+    </div>
+
     <!-- Submit Overlay -->
     <div id="submitOverlay" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; z-index:99999; background:rgba(0,0,0,0.75); align-items:center; justify-content:center; flex-direction:column; color:#fff; font-family:var(--sans);">
         <div class="spinner-border text-light mb-3" style="width:3rem; height:3rem;" role="status">
@@ -857,12 +994,97 @@
         let isLoadingQuestion = false;
         let timerInitialized = false;
 
-        // Save queue
+        // Save queue & LocalStorage keys (P2 #25)
         let pendingSaves = {};
         let failedSaves = {};
         let saveInProgress = 0;
         const MAX_RETRIES = 3;
         const RETRY_DELAY = 1000;
+        const LS_ANSWERS_KEY = 'exatuy_exam_answers_' + submissionId;
+        const LS_PENDING_KEY = 'exatuy_exam_pending_' + submissionId;
+        let currentImageZoom = 1;
+
+        function persistAnswersToLocalStorage() {
+            try {
+                localStorage.setItem(LS_ANSWERS_KEY, JSON.stringify(answeredQuestions));
+                localStorage.setItem(LS_PENDING_KEY, JSON.stringify(failedSaves));
+            } catch (e) {
+                console.warn('LocalStorage unavailable:', e);
+            }
+        }
+
+        function restoreAnswersFromLocalStorage() {
+            try {
+                const rawAnswers = localStorage.getItem(LS_ANSWERS_KEY);
+                if (rawAnswers) {
+                    const parsed = JSON.parse(rawAnswers);
+                    if (parsed && typeof parsed === 'object') {
+                        Object.assign(answeredQuestions, parsed);
+                    }
+                }
+                const rawPending = localStorage.getItem(LS_PENDING_KEY);
+                if (rawPending) {
+                    const parsedPending = JSON.parse(rawPending);
+                    if (parsedPending && typeof parsedPending === 'object') {
+                        Object.assign(failedSaves, parsedPending);
+                    }
+                }
+            } catch (e) {
+                console.warn('Failed to restore localStorage answers:', e);
+            }
+        }
+
+        function clearExamLocalStorage() {
+            try {
+                localStorage.removeItem(LS_ANSWERS_KEY);
+                localStorage.removeItem(LS_PENDING_KEY);
+            } catch (e) {}
+        }
+
+        function setOfflineBanner(state, text) {
+            const banner = document.getElementById('offlineSyncBanner');
+            if (!banner) return;
+            if (!state) {
+                banner.className = 'offline-sync-banner';
+                banner.innerHTML = '';
+                return;
+            }
+            banner.className = 'offline-sync-banner ' + state;
+            banner.innerHTML = text;
+        }
+
+        // Image Zoom Lightbox helpers (P2 #24)
+        function openImageZoom(imgSrc) {
+            const modal = document.getElementById('imageZoomModal');
+            const img = document.getElementById('zoomedImageEl');
+            if (!modal || !img) return;
+            img.src = imgSrc;
+            currentImageZoom = 1;
+            applyImageZoom();
+            modal.classList.add('open');
+        }
+
+        function adjustImageZoom(delta) {
+            currentImageZoom = Math.min(3, Math.max(0.5, currentImageZoom + delta));
+            applyImageZoom();
+        }
+
+        function resetImageZoom() {
+            currentImageZoom = 1;
+            applyImageZoom();
+        }
+
+        function applyImageZoom() {
+            const img = document.getElementById('zoomedImageEl');
+            const label = document.getElementById('zoomLevelLabel');
+            if (img) img.style.transform = 'scale(' + currentImageZoom + ')';
+            if (label) label.textContent = Math.round(currentImageZoom * 100) + '%';
+        }
+
+        function closeImageZoom() {
+            const modal = document.getElementById('imageZoomModal');
+            if (modal) modal.classList.remove('open');
+        }
 
         // ============================================
         // NAVIGATION
@@ -1032,9 +1254,12 @@
             html += '<p class="question-text">' + escapeHtml(data.questionText) + '</p>';
 
             if (data.imagePath) {
+                var imgSrc = '../' + escapeHtml(data.imagePath);
                 html += '<div class="mb-3 text-center">';
-                html += '<img src="../' + escapeHtml(data.imagePath) + '" alt="Question Image" class="question-image" oncontextmenu="return false;" ondragstart="return false;">';
-                html += '</div>';
+                html += '<div class="question-image-wrap" onclick="openImageZoom(\'' + imgSrc.replace(/'/g, "\\'") + '\')" title="Klik untuk memperbesar gambar soal">';
+                html += '<img src="' + imgSrc + '" alt="Question Image" class="question-image" oncontextmenu="return false;" ondragstart="return false;">';
+                html += '<div class="question-image-hint"><i class="bi bi-zoom-in"></i> Klik gambar untuk perbesar</div>';
+                html += '</div></div>';
             }
 
             html += '<div class="options">';
@@ -1079,12 +1304,22 @@
             }
             element.classList.add('selected');
 
-            // Save to local state
+            // Save to local state & localStorage (P2 #25)
             answeredQuestions[questionId] = option;
+            persistAnswersToLocalStorage();
 
             // Update UI
             updateProgress();
             updateAllNavButtons();
+
+            // If offline, queue locally for sync when back online
+            if (!navigator.onLine) {
+                failedSaves[questionId] = { answer: option, error: 'offline' };
+                persistAnswersToLocalStorage();
+                updateSaveIndicator('offline');
+                setOfflineBanner('offline', '<i class="bi bi-wifi-off"></i> Koneksi terputus &mdash; jawaban tersimpan lokal');
+                return;
+            }
 
             // Save to server
             saveAnswerToServer(questionId, option, 0);
@@ -1113,7 +1348,9 @@
                 if (data.success) {
                     delete pendingSaves[questionId];
                     delete failedSaves[questionId];
+                    persistAnswersToLocalStorage();
                 } else if (data.message === 'TIME_EXPIRED') {
+                    clearExamLocalStorage();
                     alert('Waktu quiz telah habis! Jawaban Anda telah otomatis dikumpulkan.');
                     window.location.href = '../ExamServlet?action=' + data.redirect;
                 } else {
@@ -1122,19 +1359,22 @@
             })
             .catch(function(error) {
                 console.error('Error saving answer:', error);
-                if (retryCount < MAX_RETRIES) {
+                if (navigator.onLine && retryCount < MAX_RETRIES) {
                     setTimeout(function() { saveAnswerToServer(questionId, selectedAnswer, retryCount + 1); }, RETRY_DELAY);
                     return;
                 }
                 failedSaves[questionId] = { answer: selectedAnswer, error: error.message };
                 delete pendingSaves[questionId];
-                alert('Gagal menyimpan jawaban. Silakan coba lagi.');
+                persistAnswersToLocalStorage();
+                if (!navigator.onLine) {
+                    setOfflineBanner('offline', '<i class="bi bi-wifi-off"></i> Koneksi terputus &mdash; jawaban tersimpan lokal');
+                }
             })
             .finally(function() {
                 saveInProgress--;
                 if (saveInProgress === 0) {
                     if (Object.keys(failedSaves).length > 0) {
-                        updateSaveIndicator('error');
+                        updateSaveIndicator(navigator.onLine ? 'error' : 'offline');
                     } else if (Object.keys(pendingSaves).length === 0) {
                         updateSaveIndicator('saved');
                     }
@@ -1166,8 +1406,11 @@
                 statusEl.innerHTML = '<i class="bi bi-arrow-repeat spin"></i> Menyimpan...';
             } else if (status === 'saved') {
                 statusEl.innerHTML = '<i class="bi bi-check-circle-fill"></i> Tersimpan';
+            } else if (status === 'offline') {
+                indicator.className = 'save-indicator saving';
+                statusEl.innerHTML = '<i class="bi bi-hdd-fill"></i> Tersimpan lokal';
             } else if (status === 'error') {
-                statusEl.innerHTML = '<i class="bi bi-exclamation-circle-fill"></i> Gagal menyimpan';
+                statusEl.innerHTML = '<i class="bi bi-exclamation-circle-fill"></i> Menunggu sinkronisasi';
             } else {
                 statusEl.innerHTML = '';
             }
@@ -1238,13 +1481,31 @@
             }
         });
 
-        // Detect internet disconnect - freeze when offline
+        // Detect internet disconnect - freeze & save locally (P2 #25)
         window.addEventListener('offline', function() {
             freezeTimer();
+            persistAnswersToLocalStorage();
+            setOfflineBanner('offline', '<i class="bi bi-wifi-off"></i> Koneksi terputus &mdash; jawaban disimpan lokal di perangkat');
         });
 
-        window.addEventListener('online', function() {
+        window.addEventListener('online', async function() {
             unfreezeTimer();
+            const pendingCount = Object.keys(failedSaves).length;
+            if (pendingCount > 0) {
+                setOfflineBanner('syncing', '<i class="bi bi-arrow-repeat spin"></i> Menyinkronkan ' + pendingCount + ' jawaban lokal ke server...');
+                await retryFailedSaves();
+                persistAnswersToLocalStorage();
+                if (Object.keys(failedSaves).length === 0) {
+                    updateSaveIndicator('saved');
+                    setOfflineBanner('synced', '<i class="bi bi-cloud-check-fill"></i> Semua jawaban berhasil disinkronkan!');
+                    setTimeout(function() { setOfflineBanner(null, ''); }, 3500);
+                } else {
+                    setOfflineBanner('offline', '<i class="bi bi-exclamation-triangle"></i> Sebagian jawaban belum tersinkron, akan dicoba saat submit');
+                }
+            } else {
+                setOfflineBanner('synced', '<i class="bi bi-wifi"></i> Koneksi kembali tersambung');
+                setTimeout(function() { setOfflineBanner(null, ''); }, 2500);
+            }
         });
 
         // ============================================
@@ -1318,6 +1579,7 @@
                     var data = await resp.json();
 
                     if (data.success) {
+                        clearExamLocalStorage();
                         window.location.href = '../ExamServlet?action=result&submissionId=' + submissionId;
                         return;
                     } else {
@@ -1381,9 +1643,20 @@
         // INITIALIZATION
         // ============================================
         document.addEventListener('DOMContentLoaded', function() {
+            restoreAnswersFromLocalStorage();
             buildNavigation();
+            updateProgress();
             loadQuestion(0);
             timerInterval = setInterval(updateTimer, 1000);
+            if (navigator.onLine && Object.keys(failedSaves).length > 0) {
+                retryFailedSaves().then(function() { persistAnswersToLocalStorage(); });
+            }
+        });
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeImageZoom();
+            }
         });
 
         // ============================================

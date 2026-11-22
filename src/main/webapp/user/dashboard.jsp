@@ -48,6 +48,11 @@
             // Ignore errors
         }
     }
+
+    // Student Quota Balance (P1 #18 - Max 12 Poin / bulan)
+    int quotaBalance = currentUser.getQuotaBalance();
+    int maxQuota = 12;
+    String quotaBadgeClass = quotaBalance == 0 ? "bg-danger text-white" : (quotaBalance <= 3 ? "bg-warning text-dark" : "bg-success text-white");
 %>
 <!DOCTYPE html>
 <html lang="id">
@@ -135,9 +140,18 @@
                     </li>
                     <% } %>
                     <%@ include file="custom-menu-items.jspf" %>
-                    <%-- Mobile: Profile menu items shown in nav list --%>
+                    <%-- Mobile: Quota Badge + Profile menu items shown in nav list --%>
                     <li class="nav-item d-md-none">
                         <hr class="my-2 border-light">
+                    </li>
+                    <li class="nav-item d-md-none mb-2">
+                        <a href="../PaymentSettingsServlet?action=checkout" class="quota-header-pill d-flex align-items-center justify-content-between text-decoration-none px-3 py-2 rounded">
+                            <span>
+                                <i class="bi bi-coin me-1"></i>
+                                <strong><%= quotaBalance %> / <%= maxQuota %> Poin</strong>
+                            </span>
+                            <small class="opacity-75"><i class="bi bi-clock me-1"></i><span class="quota-reset-countdown">--</span></small>
+                        </a>
                     </li>
                     <li class="nav-item d-md-none">
                         <div class="d-flex align-items-center text-white py-2">
@@ -156,14 +170,25 @@
                         </a>
                     </li>
                 </ul>
-                <%-- Desktop/Tablet: Profile dropdown shown outside nav list --%>
-                <div class="d-none d-md-flex align-items-center">
+                <%-- Desktop/Tablet: Quota Badge & Countdown + Profile dropdown --%>
+                <div class="d-none d-md-flex align-items-center gap-3">
+                    <a href="../PaymentSettingsServlet?action=checkout"
+                       class="quota-header-pill d-flex align-items-center gap-2 text-decoration-none px-3 py-1 rounded-pill"
+                       title="Saldo kuota aktif & hitung mundur reset tanggal 1 pukul 00:00 WIB. Klik untuk isi kuota.">
+                        <span class="badge <%= quotaBadgeClass %> rounded-pill px-2 py-1">
+                            <i class="bi bi-coin me-1"></i><%= quotaBalance %> / <%= maxQuota %> Poin
+                        </span>
+                        <small class="text-white d-none d-lg-inline" style="font-size:0.75rem; white-space:nowrap;">
+                            <i class="bi bi-arrow-clockwise me-1"></i>Reset: <span class="quota-reset-countdown">--</span>
+                        </small>
+                    </a>
                     <div class="dropdown">
                         <a href="#" class="d-flex align-items-center text-white text-decoration-none dropdown-toggle" data-bs-toggle="dropdown">
                             <i class="bi bi-person-circle me-1 fs-5"></i>
                             <span><%= ValidationUtil.sanitizeHtml(currentUser.getName()) %></span>
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="../PaymentSettingsServlet?action=checkout"><i class="bi bi-wallet2 me-2"></i>Dompet Kuota (<%= quotaBalance %>/<%= maxQuota %>)</a></li>
                             <li><a class="dropdown-item" href="../ProfileServlet"><i class="bi bi-person me-2"></i>Profil Saya</a></li>
                             <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item" href="../LogoutServlet"><i class="bi bi-box-arrow-left me-2"></i>Logout</a></li>
@@ -205,17 +230,20 @@
             </div>
         </div>
 
-        <!-- Information Board -->
-        <% if (informationBoards != null && !informationBoards.isEmpty()) { %>
+        <!-- Information Board (P1 #20 - Always shown with empty state if no announcements) -->
         <div class="mb-4">
-            <div class="d-flex align-items-center mb-3">
-                <h5 class="mb-0 me-2"><i class="bi bi-bell me-2 text-primary"></i>Pengumuman & Informasi</h5>
-                <% for (InformationBoard info : informationBoards) { %>
-                    <% if ("urgent".equals(info.getPriority())) { %>
-                        <span class="badge bg-danger bg-opacity-10 text-danger"><i class="bi bi-exclamation-circle me-1"></i><%= informationBoards.stream().filter(i -> "urgent".equals(i.getPriority())).count() %> Penting</span>
-                    <% } %>
-                <% } %>
+            <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+                <div class="d-flex align-items-center">
+                    <h5 class="mb-0 me-2"><i class="bi bi-bell me-2 text-primary"></i>Pengumuman & Informasi</h5>
+                    <% if (informationBoards != null && !informationBoards.isEmpty()) {
+                           long urgentCount = informationBoards.stream().filter(i -> "urgent".equals(i.getPriority())).count();
+                           if (urgentCount > 0) { %>
+                        <span class="badge bg-danger bg-opacity-10 text-danger"><i class="bi bi-exclamation-circle me-1"></i><%= urgentCount %> Penting</span>
+                    <%     }
+                       } %>
+                </div>
             </div>
+            <% if (informationBoards != null && !informationBoards.isEmpty()) { %>
             <div class="row g-3">
                 <% for (InformationBoard info : informationBoards) { %>
                 <div class="col-12">
@@ -254,8 +282,15 @@
                 </div>
                 <% } %>
             </div>
+            <% } else { %>
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center py-4">
+                    <i class="bi bi-megaphone text-muted opacity-50 fs-2 d-block mb-2"></i>
+                    <p class="mb-0 text-muted fw-semibold">Belum ada pengumuman baru hari ini.</p>
+                </div>
+            </div>
+            <% } %>
         </div>
-        <% } %>
 
         <!-- Available Quizzes -->
         <h4 class="mb-3"><i class="bi bi-journal-text me-2"></i>Quiz Tersedia</h4>
@@ -495,6 +530,26 @@
             var modal = new bootstrap.Modal(document.getElementById('startQuizModal'));
             modal.show();
         }
+
+        // P1 #18: Live countdown to 1st of next month 00:00 WIB (UTC+7)
+        (function initQuotaResetCountdown() {
+            function tick() {
+                var els = document.querySelectorAll('.quota-reset-countdown');
+                if (!els.length) return;
+                var nowUtcMs = Date.now();
+                var wibOffsetMs = 7 * 60 * 60 * 1000;
+                var nowWib = new Date(nowUtcMs + wibOffsetMs);
+                var nextResetUtcMs = Date.UTC(nowWib.getUTCFullYear(), nowWib.getUTCMonth() + 1, 1, 0, 0, 0) - wibOffsetMs;
+                var diff = Math.max(0, nextResetUtcMs - nowUtcMs);
+                var days = Math.floor(diff / 86400000);
+                var hours = Math.floor((diff % 86400000) / 3600000);
+                var mins = Math.floor((diff % 3600000) / 60000);
+                var label = days + 'h ' + String(hours).padStart(2, '0') + 'j ' + String(mins).padStart(2, '0') + 'm';
+                els.forEach(function(el) { el.textContent = label; });
+            }
+            tick();
+            setInterval(tick, 30000);
+        })();
     </script>
 
     <!-- Google Drive Modal -->

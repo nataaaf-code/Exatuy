@@ -351,6 +351,25 @@ nav.navbar {
     text-shadow: none;
 }
 
+/* Pertahankan warna dinamis badge kuota di navbar */
+.navbar .quota-header-pill .badge.bg-success {
+    background: var(--hd-green) !important;
+    color: #fff !important;
+}
+.navbar .quota-header-pill .badge.bg-warning {
+    background: var(--hd-orange) !important;
+    color: var(--hd-ink) !important;
+}
+.navbar .quota-header-pill .badge.bg-danger {
+    background: var(--hd-red) !important;
+    color: #fff !important;
+}
+.navbar .quota-header-pill {
+    color: #fffef9 !important;
+    border: 2px solid rgba(255, 254, 249, 0.65) !important;
+    border-radius: var(--hd-r-pill) !important;
+}
+
 /* ============================================================
    8. SIDEBAR (halaman admin)
    ============================================================ */

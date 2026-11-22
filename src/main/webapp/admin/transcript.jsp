@@ -53,8 +53,10 @@
     Map<Integer, Integer> userAttemptCounts = (Map<Integer, Integer>) request.getAttribute("userAttemptCounts");
     int totalColumnQuizzes = columnQuizzes != null ? columnQuizzes.size() : 0;
     List<String> allTags = (List<String>) request.getAttribute("allTags");
+    List<String> allSubjects = (List<String>) request.getAttribute("allSubjects");
     List<User> allParticipants = (List<User>) request.getAttribute("allParticipants");
     String selectedTagFilter = (String) request.getAttribute("selectedTagFilter");
+    String selectedSubjectFilter = (String) request.getAttribute("selectedSubjectFilter");
     String selectedUserIdFilter = (String) request.getAttribute("selectedUserIdFilter");
     List<Integer> selectedQuizIds = (List<Integer>) request.getAttribute("selectedQuizIds");
     String selectedSortBy = (String) request.getAttribute("selectedSortBy");
@@ -69,13 +71,16 @@
     if (userOverallAverages == null) userOverallAverages = new java.util.LinkedHashMap<>();
     if (userAttemptCounts == null) userAttemptCounts = new java.util.LinkedHashMap<>();
     if (allTags == null) allTags = java.util.List.of();
+    if (allSubjects == null) allSubjects = java.util.List.of("Matematika", "IPA");
     if (allParticipants == null) allParticipants = java.util.List.of();
     if (selectedTagFilter == null) selectedTagFilter = "";
+    if (selectedSubjectFilter == null) selectedSubjectFilter = "";
     if (selectedUserIdFilter == null) selectedUserIdFilter = "";
     if (selectedQuizIds == null) selectedQuizIds = java.util.List.of();
 
     Set<Integer> selectedQuizSet = new java.util.HashSet<>(selectedQuizIds);
     boolean hasActiveFilter = !selectedTagFilter.isEmpty()
+            || !selectedSubjectFilter.isEmpty()
             || !selectedUserIdFilter.isEmpty()
             || !selectedQuizIds.isEmpty()
             || (!selectedSortBy.isEmpty() && !"name".equals(selectedSortBy));
@@ -126,10 +131,10 @@
                 </nav>
             </div>
             <div class="d-flex gap-2">
-                <a class="btn btn-outline-success btn-sm" href="TranscriptServlet?action=export&format=csv&tagFilter=<%= esc(selectedTagFilter) %>&userIdFilter=<%= esc(selectedUserIdFilter) %>&sortBy=<%= esc(selectedSortBy) %><% for (Integer qid : selectedQuizIds) { %>&quizIds=<%= qid %><% } %>">
+                <a class="btn btn-outline-success btn-sm" href="TranscriptServlet?action=export&format=csv&tagFilter=<%= esc(selectedTagFilter) %>&subjectFilter=<%= esc(selectedSubjectFilter) %>&userIdFilter=<%= esc(selectedUserIdFilter) %>&sortBy=<%= esc(selectedSortBy) %><% for (Integer qid : selectedQuizIds) { %>&quizIds=<%= qid %><% } %>">
                     <i class="bi bi-filetype-csv me-1"></i>Export CSV
                 </a>
-                <a class="btn btn-outline-primary btn-sm" href="TranscriptServlet?action=export&format=xls&tagFilter=<%= esc(selectedTagFilter) %>&userIdFilter=<%= esc(selectedUserIdFilter) %>&sortBy=<%= esc(selectedSortBy) %><% for (Integer qid : selectedQuizIds) { %>&quizIds=<%= qid %><% } %>">
+                <a class="btn btn-outline-primary btn-sm" href="TranscriptServlet?action=export&format=xls&tagFilter=<%= esc(selectedTagFilter) %>&subjectFilter=<%= esc(selectedSubjectFilter) %>&userIdFilter=<%= esc(selectedUserIdFilter) %>&sortBy=<%= esc(selectedSortBy) %><% for (Integer qid : selectedQuizIds) { %>&quizIds=<%= qid %><% } %>">
                     <i class="bi bi-file-earmark-excel me-1"></i>Export Excel
                 </a>
             </div>
@@ -161,8 +166,17 @@
                     <form method="get" action="TranscriptServlet" id="filterForm">
                         <input type="hidden" name="action" value="view">
                         <div class="row g-3">
-                            <div class="col-md-3">
-                                <label class="form-label fw-semibold small mb-1">Tag Peserta</label>
+                            <div class="col-sm-6 col-lg-2">
+                                <label class="form-label fw-semibold small mb-1">Mata Pelajaran</label>
+                                <select name="subjectFilter" class="form-select form-select-sm">
+                                    <option value="">Semua Mapel</option>
+                                    <% for (String subj : allSubjects) { %>
+                                    <option value="<%= esc(subj) %>" <%= subj.equalsIgnoreCase(selectedSubjectFilter) ? "selected" : "" %>><%= esc(subj) %></option>
+                                    <% } %>
+                                </select>
+                            </div>
+                            <div class="col-sm-6 col-lg-2">
+                                <label class="form-label fw-semibold small mb-1">Tag / Kelas</label>
                                 <select name="tagFilter" class="form-select form-select-sm">
                                     <option value="">Semua Tag</option>
                                     <% for (String tag : allTags) { %>
@@ -170,7 +184,7 @@
                                     <% } %>
                                 </select>
                             </div>
-                            <div class="col-md-3">
+                            <div class="col-md-4 col-lg-3">
                                 <label class="form-label fw-semibold small mb-1">Peserta</label>
                                 <div class="input-group input-group-sm mb-1">
                                     <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
@@ -183,7 +197,7 @@
                                     <% } %>
                                 </select>
                             </div>
-                            <div class="col-md-3">
+                            <div class="col-md-4 col-lg-2">
                                 <label class="form-label fw-semibold small mb-1">Urutkan</label>
                                 <select name="sortBy" class="form-select form-select-sm">
                                     <option value="" <%= selectedSortBy.isEmpty() ? "selected" : "" %>>Nama (A-Z)</option>
@@ -193,7 +207,7 @@
                                     <option value="count-asc" <%= "count-asc".equals(selectedSortBy) ? "selected" : "" %>>Jumlah Selesai Tersedikit</option>
                                 </select>
                             </div>
-                            <div class="col-md-3 d-flex align-items-end justify-content-md-end gap-2">
+                            <div class="col-md-4 col-lg-3 d-flex align-items-end justify-content-lg-end gap-2">
                                 <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-funnel-fill me-1"></i>Terapkan</button>
                                 <a href="TranscriptServlet?action=view" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-counterclockwise me-1"></i>Reset</a>
                             </div>
@@ -247,10 +261,22 @@
                 </span>
             </div>
             <div class="card-body p-0">
-                <% if (usersIndex.isEmpty()) { %>
-                <div class="text-center py-5 text-muted">
+                <% if (usersIndex.isEmpty() || columnQuizzes.isEmpty()) { %>
+                <div class="text-center py-5 px-3 text-muted">
                     <i class="bi bi-inbox fs-1 d-block mb-2 opacity-50"></i>
-                    Belum ada data nilai yang dapat ditampilkan untuk filter ini.
+                    <h6 class="fw-bold text-dark mb-1">Data Rekap Nilai Tidak Ditemukan</h6>
+                    <p class="small mb-3">
+                        <% if (hasActiveFilter) { %>
+                            Tidak ada data nilai yang sesuai dengan filter yang aktif saat ini.
+                        <% } else { %>
+                            Belum ada data nilai peserta yang tercatat.
+                        <% } %>
+                    </p>
+                    <% if (hasActiveFilter) { %>
+                    <a href="TranscriptServlet?action=view" class="btn btn-outline-primary btn-sm">
+                        <i class="bi bi-arrow-counterclockwise me-1"></i>Reset Filter
+                    </a>
+                    <% } %>
                 </div>
                 <% } else { %>
                 <div class="matrix-wrap">

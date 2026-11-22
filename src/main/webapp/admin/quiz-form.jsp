@@ -146,6 +146,21 @@
                             </div>
 
                             <div class="mb-3">
+                                <label for="subject" class="form-label">Mata Pelajaran</label>
+                                <% String currentSubject = isEdit && quiz.getSubject() != null ? quiz.getSubject() : ""; %>
+                                <select class="form-select" id="subject" name="subject">
+                                    <option value="">-- Pilih Mata Pelajaran --</option>
+                                    <option value="Matematika" <%= "Matematika".equalsIgnoreCase(currentSubject) ? "selected" : "" %>>Matematika</option>
+                                    <option value="IPA" <%= "IPA".equalsIgnoreCase(currentSubject) ? "selected" : "" %>>IPA</option>
+                                    <option value="Bahasa Indonesia" <%= "Bahasa Indonesia".equalsIgnoreCase(currentSubject) ? "selected" : "" %>>Bahasa Indonesia</option>
+                                    <option value="Bahasa Inggris" <%= "Bahasa Inggris".equalsIgnoreCase(currentSubject) ? "selected" : "" %>>Bahasa Inggris</option>
+                                    <option value="IPS" <%= "IPS".equalsIgnoreCase(currentSubject) ? "selected" : "" %>>IPS</option>
+                                    <option value="Umum" <%= "Umum".equalsIgnoreCase(currentSubject) ? "selected" : "" %>>Umum</option>
+                                </select>
+                                <div class="form-text">Digunakan untuk filter mata pelajaran pada Rekap Nilai (Transcript).</div>
+                            </div>
+
+                            <div class="mb-3">
                                 <label for="description" class="form-label">Deskripsi</label>
                                 <textarea class="form-control" id="description" name="description" rows="3"
                                           placeholder="Deskripsi singkat tentang quiz ini"><%= isEdit && quiz.getDescription() != null ? ValidationUtil.sanitizeHtml(quiz.getDescription()) : "" %></textarea>

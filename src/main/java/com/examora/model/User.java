@@ -20,6 +20,11 @@ public class User {
     private Integer totalQuizzes;
     private Integer perfectScores;
 
+    // Quota wallet & grade level (PRD FR-007)
+    private Integer quotaBalance = 0;
+    private String gradeLevel;
+    private String lastResetMonth;
+
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -144,6 +149,30 @@ public class User {
 
     public void setPerfectScores(Integer perfectScores) {
         this.perfectScores = perfectScores;
+    }
+
+    public Integer getQuotaBalance() {
+        return quotaBalance != null ? quotaBalance : 0;
+    }
+
+    public void setQuotaBalance(Integer quotaBalance) {
+        this.quotaBalance = quotaBalance != null ? quotaBalance : 0;
+    }
+
+    public String getGradeLevel() {
+        return gradeLevel;
+    }
+
+    public void setGradeLevel(String gradeLevel) {
+        this.gradeLevel = gradeLevel;
+    }
+
+    public String getLastResetMonth() {
+        return lastResetMonth;
+    }
+
+    public void setLastResetMonth(String lastResetMonth) {
+        this.lastResetMonth = lastResetMonth;
     }
 
     // Helper methods

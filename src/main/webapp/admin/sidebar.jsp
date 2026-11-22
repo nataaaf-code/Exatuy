@@ -63,7 +63,17 @@
         <li>
             <a href="../FinanceServlet?action=summary" <%= requestURI.contains("FinanceServlet") ? "class=\"active\"" : "" %>>
                 <i class="bi bi-wallet2"></i>Keuangan
-                <span class="badge bg-warning text-dark ms-auto small">BARU</span>
+            </a>
+        </li>
+        <li>
+            <a href="../CashInReportServlet" <%= requestURI.contains("CashInReportServlet") ? "class=\"active\"" : "" %>>
+                <i class="bi bi-cash-coin"></i>Laporan Kas Masuk
+                <span class="badge bg-success text-white ms-auto small">BARU</span>
+            </a>
+        </li>
+        <li>
+            <a href="../PaymentSettingsServlet" <%= requestURI.contains("PaymentSettingsServlet") ? "class=\"active\"" : "" %>>
+                <i class="bi bi-credit-card-2-front"></i>Pembayaran Sumopod
             </a>
         </li>
         <li><hr class="sidebar-divider bg-white opacity-25 my-2"></li>

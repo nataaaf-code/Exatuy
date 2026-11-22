@@ -12,10 +12,8 @@ import java.util.List;
  */
 public class QuizDAO {
 
-    // Common column list for SELECT queries
-    private static final String QUIZ_COLUMNS = "q.id, q.title, q.description, q.duration, q.is_active, q.deadline, " +
-                                               "q.start_time, q.target_tag, q.created_by, q.created_at, q.updated_at, " +
-                                               "q.shuffle_questions, q.show_review, q.exemption_time";
+    // Common column list for SELECT queries (q.* preserves compatibility with optional columns like subject)
+    private static final String QUIZ_COLUMNS = "q.*";
 
     /**
      * Create a new quiz
@@ -337,6 +335,13 @@ public class QuizDAO {
         String targetTag = rs.getString("target_tag");
         quiz.setTargetTag(targetTag);
 
+        // Optional subject column (backward-compatible if migration not yet applied)
+        try {
+            quiz.setSubject(rs.getString("subject"));
+        } catch (SQLException ignored) {
+            quiz.setSubject(null);
+        }
+
         Timestamp createdAt = rs.getTimestamp("created_at");
         if (createdAt != null) {
             quiz.setCreatedAt(createdAt.toLocalDateTime());
@@ -418,6 +423,26 @@ public class QuizDAO {
             stmt.setInt(11, quiz.getId());
 
             return stmt.executeUpdate() > 0;
+        }
+    }
+
+    /**
+     * Update subject for a quiz (no-op if subject column is not yet migrated).
+     */
+    public void updateSubject(Integer quizId, String subject) {
+        if (quizId == null) return;
+        String sql = "UPDATE quiz SET subject = ? WHERE id = ?";
+        try (Connection conn = DBUtil.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            if (subject != null && !subject.trim().isEmpty()) {
+                stmt.setString(1, subject.trim());
+            } else {
+                stmt.setNull(1, java.sql.Types.VARCHAR);
+            }
+            stmt.setInt(2, quizId);
+            stmt.executeUpdate();
+        } catch (SQLException ignored) {
+            // Gracefully ignore if column does not exist yet
         }
     }
 

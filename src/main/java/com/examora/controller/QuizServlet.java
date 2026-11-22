@@ -224,6 +224,10 @@ public class QuizServlet extends HttpServlet {
         User user = (User) request.getSession().getAttribute("user");
 
         Quiz quiz = quizService.createQuiz(title, description, duration, user.getId(), deadline, targetTag, startTime);
+        String subject = request.getParameter("subject");
+        if (subject != null && !subject.trim().isEmpty()) {
+            new com.examora.dao.QuizDAO().updateSubject(quiz.getId(), subject.trim());
+        }
 
         request.setAttribute("success", "Quiz berhasil dibuat");
         response.sendRedirect(request.getContextPath() + "/QuestionServlet?action=list&quizId=" + quiz.getId());
@@ -268,6 +272,10 @@ public class QuizServlet extends HttpServlet {
         boolean showReview = "on".equals(request.getParameter("showReview"));
 
         quizService.updateQuiz(id, title, description, duration, deadline, targetTag, startTime, shuffleQuestions, showReview, exemptionTime);
+        String subject = request.getParameter("subject");
+        if (subject != null) {
+            new com.examora.dao.QuizDAO().updateSubject(id, subject.trim());
+        }
 
         // Process exemptions
         try {
