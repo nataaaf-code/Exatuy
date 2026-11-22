@@ -98,7 +98,7 @@ public class BulkEmailServlet extends HttpServlet {
                     recipients = bulkEmailDAO.findUnpaid();
                     subject = "Pengingat Tagihan Kuota Belajar Exatuy";
                     body = "Halo,\n\nKamu masih memiliki tagihan pembelian kuota belajar yang belum dibayar. "
-                            + "Silakan selesaikan pembayaran melalui tautan Sumopod di Exatuy.\n\n"
+                            + "Silakan selesaikan pembayaran melalui menu Dompet Kuota di Exatuy.\n\n"
                             + "Terima kasih,\nBimbel Mentari";
             }
 
