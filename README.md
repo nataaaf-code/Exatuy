@@ -251,6 +251,9 @@ Catatan operasional:
   membuat fitur baru (kuota, PIN, GMeet, kategori pengumuman, navbar baru) tidak muncul.
 * `.env` (rahasia DB Sumopod/DSB.) tidak pernah di-commit; gunakan `.env.example`
   sebagai acuan.
+* `EXATUY_ENCRYPTION_KEY` di `.env` **wajib** diisi (`openssl rand -base64 32`). Tanpa itu
+  API key pembayaran tidak bisa disimpan maupun dibaca. API key yang tersimpan sebelum
+  kunci ini diisi perlu diinput ulang di menu Pembayaran Online.
 * Health-check memantau DB, scheduler reset kuota, dan keterjangkauan AI service;
   `ai_service.reachable: false` **bukan** kegagalan aplikasi (fitur AI bersifat opsional).
 

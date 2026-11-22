@@ -96,6 +96,12 @@
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
         <% } %>
+        <% if (!com.examora.util.CryptoUtil.isKeyConfigured()) { %>
+        <div class="alert alert-warning">
+            <i class="bi bi-shield-exclamation me-2"></i>
+            Kunci enkripsi server (<code>EXATUY_ENCRYPTION_KEY</code>) belum diset, sehingga API Key belum bisa disimpan atau dibaca. Hubungi pengelola server.
+        </div>
+        <% } %>
 
         <div class="row g-4">
             <!-- Form Konfigurasi Pembayaran -->
