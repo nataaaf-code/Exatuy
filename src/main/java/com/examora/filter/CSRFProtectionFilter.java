@@ -6,11 +6,20 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- * CSRF Protection Filter - Validates CSRF tokens for state-changing requests
+ * CSRF Protection Filter - Validates CSRF tokens for state-changing requests.
+ *
+ * Endpoint machine-to-machine (mis. webhook pembayaran) dikecualikan secara
+ * eksplisit, bukan sekadar lolos karena tidak membawa cookie session. Endpoint
+ * itu wajib diamankan oleh token/signature milik gateway (mis. X-Webhook-Token).
  */
 @WebFilter("/*")
 public class CSRFProtectionFilter implements Filter {
@@ -18,6 +27,13 @@ public class CSRFProtectionFilter implements Filter {
     private static final Logger logger = Logger.getLogger(CSRFProtectionFilter.class.getName());
     private static final String CSRF_TOKEN_PARAM = "csrfToken";
     private static final String CSRF_TOKEN_HEADER = "X-CSRF-Token";
+
+    private static final Set<String> CSRF_EXEMPT_PATHS = new HashSet<>(Arrays.asList(
+            "/LoginServlet",
+            "/RegisterServlet",
+            "/SumopodWebhookServlet",
+            "/api/ai/webhook/messaging"
+    ));
 
     @Override
     public void init(FilterConfig filterConfig) throws ServletException {
@@ -32,16 +48,15 @@ public class CSRFProtectionFilter implements Filter {
         HttpServletResponse httpResponse = (HttpServletResponse) response;
 
         String method = httpRequest.getMethod();
-        String path = httpRequest.getRequestURI();
 
         // Only check CSRF for state-changing methods (POST, PUT, DELETE, PATCH)
         if ("POST".equalsIgnoreCase(method) || "PUT".equalsIgnoreCase(method) ||
             "DELETE".equalsIgnoreCase(method) || "PATCH".equalsIgnoreCase(method)) {
 
-            // Skip CSRF for login/register (no session yet) and the payment webhook
-            // (server-to-server, authenticated by X-Webhook-Token)
-            if (path.contains("/LoginServlet") || path.contains("/RegisterServlet")
-                    || path.contains("/SumopodWebhookServlet")) {
+            // Skip CSRF only for explicitly allow-listed machine-to-machine endpoints.
+            // They are authenticated by their own gateway token/signature, not CSRF.
+            String servletPath = httpRequest.getServletPath();
+            if (servletPath != null && CSRF_EXEMPT_PATHS.contains(servletPath)) {
                 chain.doFilter(request, response);
                 return;
             }
@@ -52,8 +67,11 @@ public class CSRFProtectionFilter implements Filter {
                 String sessionToken = (String) session.getAttribute("csrfToken");
                 String requestToken = getCSRFToken(httpRequest);
 
-                if (sessionToken == null || requestToken == null || !sessionToken.equals(requestToken)) {
-                    logger.log(Level.WARNING, "CSRF validation failed - Path: " + path);
+                if (sessionToken == null || requestToken == null
+                        || !MessageDigest.isEqual(
+                                sessionToken.getBytes(StandardCharsets.UTF_8),
+                                requestToken.getBytes(StandardCharsets.UTF_8))) {
+                    logger.log(Level.WARNING, "CSRF validation failed - Path: " + servletPath);
 
                     // Check if this is an AJAX request expecting JSON
                     boolean isAjax = "XMLHttpRequest".equals(httpRequest.getHeader("X-Requested-With")) ||
