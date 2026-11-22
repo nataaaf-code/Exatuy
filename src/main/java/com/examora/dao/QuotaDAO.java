@@ -40,27 +40,7 @@ public class QuotaDAO {
             conn = DBUtil.getConnection();
             conn.setAutoCommit(false);
 
-            int balance;
-            String lastMonth;
-            try (PreparedStatement stmt = conn.prepareStatement(
-                    "SELECT quota_balance, last_reset_month FROM users WHERE id = ? FOR UPDATE")) {
-                stmt.setInt(1, userId);
-                try (ResultSet rs = stmt.executeQuery()) {
-                    if (!rs.next()) {
-                        throw new SQLException("User not found: " + userId);
-                    }
-                    balance = rs.getInt("quota_balance");
-                    lastMonth = rs.getString("last_reset_month");
-                }
-            }
-
-            boolean newPeriod = !month.equals(lastMonth);
-            if (newPeriod && balance > 0) {
-                insertLog(conn, userId, -balance, 0, "monthly_reset", lastMonth);
-            }
-            if (newPeriod) {
-                balance = 0;
-            }
+            int balance = lockBalance(conn, userId, month);
 
             int newBalance = balance + delta;
             if (newBalance < 0 || newBalance > max) {
@@ -87,6 +67,51 @@ public class QuotaDAO {
                 try { conn.setAutoCommit(true); conn.close(); } catch (SQLException e) { }
             }
         }
+    }
+
+    /**
+     * Tambah poin hasil pembelian di dalam transaksi milik pemanggil (tanpa commit),
+     * supaya status pembayaran dan saldo berubah bersamaan. Saldo dibatasi sampai max.
+     *
+     * @return jumlah poin yang benar-benar ditambahkan
+     */
+    public int creditCapped(Connection conn, int userId, int points, int max, String referenceId, String month)
+            throws SQLException {
+        int balance = lockBalance(conn, userId, month);
+        int credited = Math.max(0, Math.min(points, max - balance));
+
+        updateBalance(conn, userId, balance + credited, month);
+        if (credited > 0) {
+            insertLog(conn, userId, credited, balance + credited, "topup", referenceId);
+        }
+        return credited;
+    }
+
+    /**
+     * Kunci baris saldo siswa dan terapkan lazy reset bulanan.
+     *
+     * @return saldo untuk periode berjalan (belum disimpan)
+     */
+    private int lockBalance(Connection conn, int userId, String month) throws SQLException {
+        int balance;
+        String lastMonth;
+        try (PreparedStatement stmt = conn.prepareStatement(
+                "SELECT quota_balance, last_reset_month FROM users WHERE id = ? FOR UPDATE")) {
+            stmt.setInt(1, userId);
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (!rs.next()) {
+                    throw new SQLException("User not found: " + userId);
+                }
+                balance = rs.getInt("quota_balance");
+                lastMonth = rs.getString("last_reset_month");
+            }
+        }
+
+        boolean newPeriod = !month.equals(lastMonth);
+        if (newPeriod && balance > 0) {
+            insertLog(conn, userId, -balance, 0, "monthly_reset", lastMonth);
+        }
+        return newPeriod ? 0 : balance;
     }
 
     /**
