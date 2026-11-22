@@ -83,8 +83,9 @@ public class GMeetServlet extends HttpServlet {
         // Admin/teacher bebas membuka untuk moderasi (tanpa potong poin).
         if (user.isPeserta()) {
             try {
+                LocalDate today = LocalDate.now(QuotaService.WIB);
                 QuotaDAO.GMeetCharge access = quotaService.consumeGMeetOnce(user.getId(),
-                        accessReference(target.id, target.url, LocalDate.now(QuotaService.WIB)));
+                        accessReference(target.id, target.url, today), today);
                 session.setAttribute("flashSuccess",
                         access.charged ? "Akses dibuka. 1 poin terpakai, sisa saldo " + access.balance
                                 + " / " + QuotaService.MAX_QUOTA + " poin."
@@ -115,8 +116,9 @@ public class GMeetServlet extends HttpServlet {
         boolean unlocked = !user.isPeserta();
         if (available && user.isPeserta()) {
             try {
+                LocalDate today = LocalDate.now(QuotaService.WIB);
                 unlocked = quotaService.hasGMeetAccess(user.getId(),
-                        accessReference(target.id, target.url, LocalDate.now(QuotaService.WIB)));
+                        accessReference(target.id, target.url, today), today);
             } catch (QuotaService.ServiceException e) {
                 session.setAttribute("flashError", e.getMessage());
             }

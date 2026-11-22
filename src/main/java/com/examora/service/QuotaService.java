@@ -5,6 +5,8 @@ import com.examora.dao.QuotaDAO;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.YearMonth;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 
@@ -93,9 +95,10 @@ public class QuotaService {
         return change(userId, -1, reason, referenceId);
     }
 
-    public QuotaDAO.GMeetCharge consumeGMeetOnce(int userId, String referenceId) throws ServiceException {
+    public QuotaDAO.GMeetCharge consumeGMeetOnce(int userId, String referenceId, LocalDate day)
+            throws ServiceException {
         try {
-            return quotaDAO.consumeGMeetOnce(userId, referenceId, monthKey(Instant.now()));
+            return quotaDAO.consumeGMeetOnce(userId, referenceId, day, YearMonth.from(day).toString());
         } catch (QuotaDAO.LimitException e) {
             throw new ServiceException(emptyQuotaMessage());
         } catch (SQLException e) {
@@ -103,9 +106,9 @@ public class QuotaService {
         }
     }
 
-    public boolean hasGMeetAccess(int userId, String referenceId) throws ServiceException {
+    public boolean hasGMeetAccess(int userId, String referenceId, LocalDate day) throws ServiceException {
         try {
-            return quotaDAO.hasGMeetAccess(userId, referenceId);
+            return quotaDAO.hasGMeetAccess(userId, referenceId, day);
         } catch (SQLException e) {
             throw new ServiceException("Gagal memeriksa akses sesi. Silakan coba lagi.", e);
         }
