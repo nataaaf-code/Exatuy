@@ -39,4 +39,15 @@ class ApiServiceValidationTest {
         assertEquals("ALL", ApiService.normalizeGrade("Kelas 4"));
         assertEquals("ALL", ApiService.normalizeGrade("SD-9"));
     }
+
+    @Test
+    @DisplayName("audiens dinormalkan ke all/participants/admins")
+    void audiensDinormalkan() {
+        assertEquals("all", ApiService.normalizeTargetAudience("All"));
+        assertEquals("participants", ApiService.normalizeTargetAudience(" Participants "));
+        assertEquals("admins", ApiService.normalizeTargetAudience("ADMINS"));
+        assertEquals("all", ApiService.normalizeTargetAudience(null));
+        assertEquals("all", ApiService.normalizeTargetAudience(""));
+        assertEquals("all", ApiService.normalizeTargetAudience("pengunjung"));
+    }
 }
