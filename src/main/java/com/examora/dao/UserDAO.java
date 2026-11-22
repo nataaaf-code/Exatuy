@@ -210,6 +210,39 @@ public class UserDAO {
     }
 
     /**
+     * Get PIN hash (null if the user has no PIN)
+     */
+    public String findPinHash(Integer userId) throws SQLException {
+        String sql = "SELECT pin_hash FROM users WHERE id = ?";
+
+        try (Connection conn = DBUtil.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+            stmt.setInt(1, userId);
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                return rs.next() ? rs.getString("pin_hash") : null;
+            }
+        }
+    }
+
+    /**
+     * Update PIN hash
+     */
+    public boolean updatePinHash(Integer userId, String pinHash) throws SQLException {
+        String sql = "UPDATE users SET pin_hash = ? WHERE id = ?";
+
+        try (Connection conn = DBUtil.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+            stmt.setString(1, pinHash);
+            stmt.setInt(2, userId);
+
+            return stmt.executeUpdate() > 0;
+        }
+    }
+
+    /**
      * Delete user and all associated records across dependent tables
      */
     public boolean delete(Integer id) throws SQLException {

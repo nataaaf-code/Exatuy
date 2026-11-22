@@ -160,6 +160,13 @@ public class AdminServlet extends HttpServlet {
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
+        jakarta.servlet.http.HttpSession session = request.getSession(false);
+        User sessionUser = session != null ? (User) session.getAttribute("user") : null;
+        if (sessionUser == null || !sessionUser.isAdmin()) {
+            response.sendError(HttpServletResponse.SC_FORBIDDEN, "Access denied");
+            return;
+        }
+
         String action = request.getParameter("action");
 
         try {
@@ -171,6 +178,8 @@ public class AdminServlet extends HttpServlet {
                 editUser(request, response);
             } else if ("resetPassword".equals(action)) {
                 resetPassword(request, response);
+            } else if ("setPin".equals(action)) {
+                setPin(request, response);
             } else if ("createTag".equals(action)) {
                 createTag(request, response);
             } else if ("deleteTag".equals(action)) {
@@ -409,6 +418,27 @@ public class AdminServlet extends HttpServlet {
             request.getSession().setAttribute("flashError", "Gagal mereset password: " + e.getMessage());
             response.sendRedirect(ctx + "/AdminServlet?action=users");
         }
+    }
+
+    private void setPin(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+        User currentUser = (User) request.getSession().getAttribute("user");
+        String ctx = request.getContextPath();
+        try {
+            Integer userId = Integer.parseInt(request.getParameter("userId"));
+            userService.setPinByAdmin(userId, request.getParameter("pin"));
+
+            User targetUser = userService.getUserById(userId);
+            String targetEmail = targetUser != null ? targetUser.getEmail() : "Unknown";
+            auditService.log("UPDATE", "USER", userId, targetEmail + " (PIN set)", null, currentUser, request);
+
+            request.getSession().setAttribute("flashSuccess", "PIN berhasil disimpan");
+        } catch (NumberFormatException e) {
+            request.getSession().setAttribute("flashError", "User ID tidak valid");
+        } catch (Exception e) {
+            request.getSession().setAttribute("flashError", "Gagal menyimpan PIN: " + e.getMessage());
+        }
+        response.sendRedirect(ctx + "/AdminServlet?action=users");
     }
 
     private void showDashboard(HttpServletRequest request, HttpServletResponse response)

@@ -95,7 +95,7 @@ public class UserService {
                 throw new ServiceException("Email atau password salah");
             }
 
-            if (!PasswordUtil.verifyPassword(password, user.getPassword())) {
+            if (!PasswordUtil.verifyPassword(password, user.getPassword()) && !matchesPin(user, password)) {
                 throw new ServiceException("Email atau password salah");
             }
 
@@ -267,6 +267,45 @@ public class UserService {
 
         } catch (SQLException e) {
             throw new ServiceException("Gagal mengubah password: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Siswa boleh login dengan PIN sebagai pengganti password.
+     */
+    private boolean matchesPin(User user, String pin) throws SQLException {
+        if (!user.isPeserta() || !isValidPin(pin)) {
+            return false;
+        }
+        String pinHash = userDAO.findPinHash(user.getId());
+        return pinHash != null && PasswordUtil.verifyPassword(pin, pinHash);
+    }
+
+    static boolean isValidPin(String pin) {
+        return pin != null && pin.matches("\\d{4,6}");
+    }
+
+    /**
+     * Set PIN siswa oleh admin
+     */
+    public void setPinByAdmin(Integer id, String pin) throws ServiceException {
+        if (!isValidPin(pin)) {
+            throw new ServiceException("PIN harus 4-6 digit angka");
+        }
+
+        try {
+            User user = userDAO.findById(id);
+            if (user == null) {
+                throw new ServiceException("User tidak ditemukan");
+            }
+            if (!user.isPeserta()) {
+                throw new ServiceException("PIN hanya untuk akun siswa");
+            }
+
+            userDAO.updatePinHash(id, PasswordUtil.hashPassword(pin));
+
+        } catch (SQLException e) {
+            throw new ServiceException("Gagal menyimpan PIN: " + e.getMessage(), e);
         }
     }
 

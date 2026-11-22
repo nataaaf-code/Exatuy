@@ -268,6 +268,14 @@
                                                 onclick="showResetPasswordModalFromData(this)">
                                             <i class="bi bi-key"></i>
                                         </button>
+                                        <% if (user.isPeserta()) { %>
+                                        <button type="button" class="btn btn-outline-secondary" title="Atur PIN"
+                                                data-user-id="<%= user.getId() %>"
+                                                data-user-name="<%= escJs(user.getName()) %>"
+                                                onclick="showSetPinModalFromData(this)">
+                                            <i class="bi bi-123"></i>
+                                        </button>
+                                        <% } %>
                                         <% if (!user.isAdmin() || !user.getEmail().equals("admin@examora.com")) { %>
                                         <button type="button" class="btn btn-outline-danger" title="Hapus"
                                                 data-user-id="<%= user.getId() %>"
@@ -583,6 +591,38 @@
         </div>
     </div>
 
+    <!-- Set PIN Modal -->
+    <div class="modal fade" id="setPinModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-secondary text-white">
+                    <h5 class="modal-title"><i class="bi bi-123 me-2"></i>Atur PIN Siswa</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <form action="../AdminServlet" method="post">
+                    <input type="hidden" name="csrfToken" value="<%= csrfToken %>">
+                    <input type="hidden" name="action" value="setPin">
+                    <input type="hidden" name="userId" id="setPinUserId">
+                    <div class="modal-body">
+                        <p>PIN login untuk: <strong id="setPinUserName"></strong></p>
+                        <div class="mb-3">
+                            <label for="newPin" class="form-label">PIN Baru</label>
+                            <input type="password" class="form-control" id="newPin" name="pin" required
+                                   inputmode="numeric" pattern="\d{4,6}" minlength="4" maxlength="6" autocomplete="off">
+                            <small class="text-muted">4-6 digit angka. Siswa login dengan email + PIN ini.</small>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-lg me-1"></i>Simpan PIN
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <!-- Create Tag Modal -->
     <div class="modal fade" id="createTagModal" tabindex="-1">
         <div class="modal-dialog">
@@ -842,6 +882,13 @@
             document.getElementById('resetPasswordUserId').value = userId;
             document.getElementById('resetPasswordUserName').textContent = userName;
             new bootstrap.Modal(document.getElementById('resetPasswordModal')).show();
+        }
+
+        function showSetPinModalFromData(btn) {
+            document.getElementById('setPinUserId').value = btn.dataset.userId;
+            document.getElementById('setPinUserName').textContent = btn.dataset.userName || '';
+            document.getElementById('newPin').value = '';
+            new bootstrap.Modal(document.getElementById('setPinModal')).show();
         }
 
         // Legacy functions for backward compatibility
