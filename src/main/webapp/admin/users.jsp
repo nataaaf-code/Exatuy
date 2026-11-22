@@ -538,6 +538,12 @@
                                     <i class="bi bi-plus"></i> Tag Baru
                                 </button>
                             </div>
+                            <button type="button" class="btn btn-outline-danger btn-sm mt-2" onclick="clearEditTag()">
+                                <i class="bi bi-x-circle me-1"></i>Hapus Tag Pengguna Ini
+                            </button>
+                            <span id="editTagClearedNote" class="badge bg-secondary ms-2" style="display:none;">
+                                Tag akan dihapus saat disimpan
+                            </span>
                             <div id="editNewTagInputWrapper" class="mt-2" style="display: none;">
                                 <input type="text" class="form-control" name="newTag" id="editNewTagInput"
                                        placeholder="Masukkan nama tag baru" maxlength="50">
@@ -1019,6 +1025,16 @@
             });
 
             return false;
+        }
+
+        // Kosongkan tag pengguna yang sedang diedit (disimpan sebagai NULL di DB).
+        function clearEditTag() {
+            var select = document.getElementById('editTagSelect');
+            if (select) { select.value = ''; }
+            var input = document.getElementById('editNewTagInput');
+            if (input) { input.value = ''; }
+            var note = document.getElementById('editTagClearedNote');
+            if (note) { note.style.display = 'inline-block'; }
         }
 
         function deleteTag(tagName) {

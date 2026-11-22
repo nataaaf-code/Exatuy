@@ -427,7 +427,7 @@ public class UserService {
             if (role != null && !role.isEmpty()) {
                 user.setRole(role);
             }
-            user.setTag(tag);
+            user.setTag(tag == null || tag.isBlank() ? null : tag.trim());
             user.setGdriveLink(gdriveLink);
             userDAO.update(user);
 
