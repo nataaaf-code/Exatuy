@@ -477,6 +477,22 @@
                                        placeholder="Masukkan nama tag baru" maxlength="50">
                                 <small class="text-muted">Tag baru akan digunakan untuk user ini</small>
                             </div>
+                            <%-- Aksi hapus untuk tag yang sudah ada, tepat di bawah dropdown tag --%>
+                            <% if (tags != null && !tags.isEmpty()) { %>
+                            <div class="mt-2">
+                                <small class="text-muted d-block mb-1">Hapus tag yang sudah ada (klik &times;):</small>
+                                <div class="d-flex flex-wrap gap-2">
+                                    <% for (String existingTag : tags) { %>
+                                    <span class="badge bg-light text-dark border d-flex align-items-center gap-1">
+                                        <i class="bi bi-tag-fill text-info"></i><%= esc(existingTag) %>
+                                        <button type="button" class="btn-close" style="font-size:.55rem;"
+                                                title="Hapus tag '<%= esc(existingTag) %>' dari semua user"
+                                                onclick="deleteTag('<%= esc(existingTag) %>')"></button>
+                                    </span>
+                                    <% } %>
+                                </div>
+                            </div>
+                            <% } %>
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Link Google Drive</label>
@@ -544,6 +560,22 @@
                             <span id="editTagClearedNote" class="badge bg-secondary ms-2" style="display:none;">
                                 Tag akan dihapus saat disimpan
                             </span>
+                            <%-- Aksi hapus untuk tag yang sudah ada, tepat di bawah dropdown tag --%>
+                            <% if (tags != null && !tags.isEmpty()) { %>
+                            <div class="mt-2">
+                                <small class="text-muted d-block mb-1">Hapus tag yang sudah ada (klik &times;):</small>
+                                <div class="d-flex flex-wrap gap-2">
+                                    <% for (String existingTagEdit : tags) { %>
+                                    <span class="badge bg-light text-dark border d-flex align-items-center gap-1">
+                                        <i class="bi bi-tag-fill text-info"></i><%= esc(existingTagEdit) %>
+                                        <button type="button" class="btn-close" style="font-size:.55rem;"
+                                                title="Hapus tag '<%= esc(existingTagEdit) %>' dari semua user"
+                                                onclick="deleteTag('<%= esc(existingTagEdit) %>')"></button>
+                                    </span>
+                                    <% } %>
+                                </div>
+                            </div>
+                            <% } %>
                             <div id="editNewTagInputWrapper" class="mt-2" style="display: none;">
                                 <input type="text" class="form-control" name="newTag" id="editNewTagInput"
                                        placeholder="Masukkan nama tag baru" maxlength="50">
