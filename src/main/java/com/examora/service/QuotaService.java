@@ -93,6 +93,24 @@ public class QuotaService {
         return change(userId, -1, reason, referenceId);
     }
 
+    public QuotaDAO.GMeetCharge consumeGMeetOnce(int userId, String referenceId) throws ServiceException {
+        try {
+            return quotaDAO.consumeGMeetOnce(userId, referenceId, monthKey(Instant.now()));
+        } catch (QuotaDAO.LimitException e) {
+            throw new ServiceException(emptyQuotaMessage());
+        } catch (SQLException e) {
+            throw new ServiceException("Gagal membuka sesi Google Meet. Silakan coba lagi.", e);
+        }
+    }
+
+    public boolean hasGMeetAccess(int userId, String referenceId) throws ServiceException {
+        try {
+            return quotaDAO.hasGMeetAccess(userId, referenceId);
+        } catch (SQLException e) {
+            throw new ServiceException("Gagal memeriksa akses sesi. Silakan coba lagi.", e);
+        }
+    }
+
     /**
      * Reset massal untuk scheduler. Idempoten: hanya menyentuh siswa yang periodenya tertinggal.
      *

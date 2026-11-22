@@ -477,20 +477,18 @@
                     <div class="alert <%= quotaBalance >= 1 ? "alert-success" : "alert-warning" %> small mb-2 text-start">
                         <i class="bi bi-wallet2 me-1"></i>
                         Saldo poin Anda: <strong><%= quotaBalance %> / 12</strong>.
-                        Membuka tautan ini memotong <strong>1 poin</strong><% if (quotaBalance < 1) { %> —
-                        poin habis, silakan <a href="PaymentSettingsServlet?action=checkout">beli paket kuota</a> dulu<% } %>.
+                        Membuka sesi memotong <strong>1 poin sekali per hari WIB</strong>;
+                        melihat halaman sesi tidak memotong poin<% if (quotaBalance < 1) { %> —
+                        jika belum membuka hari ini, <a href="PaymentSettingsServlet?action=checkout">beli paket kuota</a> dulu<% } %>.
                     </div>
                     <div class="d-flex gap-2">
                         <button type="button" class="btn btn-outline-secondary px-4 flex-fill" data-bs-dismiss="modal">
                             <i class="bi bi-x-lg me-1"></i>Tutup
                         </button>
-                        <form method="post" action="GMeetServlet" class="flex-fill m-0">
-                            <input type="hidden" name="csrfToken" value="<%= session.getAttribute("csrfToken") %>">
-                            <button type="submit" class="btn btn-danger px-4 w-100" <%= quotaBalance < 1 ? "disabled" : "" %>>
-                                <i class="bi bi-box-arrow-up-right me-1"></i>
-                                Buka <%= isGmeetLink ? "Google Meet" : "Google Drive" %> (1 Poin)
-                            </button>
-                        </form>
+                        <a href="GMeetServlet" class="btn btn-danger px-4 flex-fill">
+                            <i class="bi bi-box-arrow-up-right me-1"></i>
+                            Lihat Sesi <%= isGmeetLink ? "Google Meet" : "Google Drive" %>
+                        </a>
                     </div>
                 </div>
             </div>

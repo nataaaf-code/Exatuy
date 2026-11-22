@@ -1,6 +1,7 @@
 package com.examora.controller;
 
 import com.examora.dao.MeetLinkDAO;
+import com.examora.dao.QuotaDAO;
 import com.examora.model.User;
 import com.examora.service.QuotaService;
 import com.examora.service.UserService;
@@ -13,6 +14,10 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.time.LocalDate;
 
 /**
  * GMeetServlet — akses sesi Google Meet / Drive siswa (PRD P1 #14).
@@ -20,10 +25,8 @@ import java.io.IOException;
  * Perubahan perilaku: tautan TIDAK lagi langsung redirect. Setelah siswa klik
  * menu "Google Meet", sistem menampilkan halaman berisi tautan sesinya.
  *
- *   GET  /GMeetServlet  -> halaman akses: tampilkan info kuota + tombol
- *                          "Tampilkan Tautan (1 Poin)" (belum memotong poin).
- *   POST /GMeetServlet  -> potong 1 poin (khusus role peserta) lalu tampilkan
- *                          kembali tautan siap diklik/di-copy.
+ *   GET  /GMeetServlet  -> tampilkan tautan bila sudah dibayar pada hari WIB ini.
+ *   POST /GMeetServlet  -> potong paling banyak 1 poin per tautan per hari WIB.
  *
  * Sumber tautan: tabel `meet_links` yang dikelola pengajar di menu
  * "Link Google Meet"; fallback ke `users.gdrive_link` untuk data lama.
@@ -54,7 +57,7 @@ public class GMeetServlet extends HttpServlet {
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        showAccessPage(request, response, null);
+        showAccessPage(request, response);
     }
 
     @Override
@@ -68,9 +71,9 @@ public class GMeetServlet extends HttpServlet {
         }
 
         User user = refresh(sessionUser, session);
-        String link = resolveLink(user);
+        MeetTarget target = resolveTarget(user);
 
-        if (!isAllowed(link)) {
+        if (!isAllowed(target.url)) {
             session.setAttribute("flashError",
                     "Tautan sesi belum tersedia. Hubungi pengajar untuk menjadwalkan Google Meet.");
             response.sendRedirect(request.getContextPath() + "/GMeetServlet");
@@ -80,11 +83,13 @@ public class GMeetServlet extends HttpServlet {
         // Admin/teacher bebas membuka untuk moderasi (tanpa potong poin).
         if (user.isPeserta()) {
             try {
-                int balance = quotaService.consume(user.getId(), "gmeet", "link-access");
+                QuotaDAO.GMeetCharge access = quotaService.consumeGMeetOnce(user.getId(),
+                        accessReference(target.id, target.url, LocalDate.now(QuotaService.WIB)));
                 session.setAttribute("flashSuccess",
-                        "Akses dibuka. 1 poin terpakai, sisa saldo " + balance + " / "
-                                + QuotaService.MAX_QUOTA + " poin.");
-                user.setQuotaBalance(balance);
+                        access.charged ? "Akses dibuka. 1 poin terpakai, sisa saldo " + access.balance
+                                + " / " + QuotaService.MAX_QUOTA + " poin."
+                                : "Akses sesi ini sudah dibuka hari ini. Tidak ada potongan poin tambahan.");
+                user.setQuotaBalance(access.balance);
             } catch (QuotaService.ServiceException quotaEx) {
                 session.setAttribute("flashError", quotaEx.getMessage());
                 response.sendRedirect(request.getContextPath() + "/GMeetServlet");
@@ -92,11 +97,10 @@ public class GMeetServlet extends HttpServlet {
             }
         }
 
-        showAccessPage(request, response, link);
+        response.sendRedirect(request.getContextPath() + "/GMeetServlet");
     }
 
-    /** Tampilkan halaman akses; {@code unlockedLink} != null berarti sudah dibayar. */
-    private void showAccessPage(HttpServletRequest request, HttpServletResponse response, String unlockedLink)
+    private void showAccessPage(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
         HttpSession session = request.getSession();
         User sessionUser = (User) session.getAttribute("user");
@@ -106,35 +110,69 @@ public class GMeetServlet extends HttpServlet {
         }
         User user = refresh(sessionUser, session);
 
-        MeetLinkDAO.MeetLink active = null;
-        try {
-            active = meetLinkDAO.findForStudent(user.getTag(), user.getGradeLevel());
-        } catch (Exception ignored) {
-            // Tabel meet_links belum ada -> jatuh ke gdrive_link (data lama).
+        MeetTarget target = resolveTarget(user);
+        boolean available = isAllowed(target.url);
+        boolean unlocked = !user.isPeserta();
+        if (available && user.isPeserta()) {
+            try {
+                unlocked = quotaService.hasGMeetAccess(user.getId(),
+                        accessReference(target.id, target.url, LocalDate.now(QuotaService.WIB)));
+            } catch (QuotaService.ServiceException e) {
+                session.setAttribute("flashError", e.getMessage());
+            }
         }
-
-        String link = unlockedLink != null ? unlockedLink : resolveLink(user);
-        request.setAttribute("meetUrl", link);
-        request.setAttribute("meetTitle",
-                active != null && active.title != null ? active.title : "Sesi Belajar Google Meet");
-        request.setAttribute("meetSchedule", active != null ? active.scheduleInfo : null);
-        request.setAttribute("meetAvailable", isAllowed(link));
-        request.setAttribute("unlocked", unlockedLink != null);
+        request.setAttribute("meetUrl", target.url);
+        request.setAttribute("meetTitle", target.title);
+        request.setAttribute("meetSchedule", target.scheduleInfo);
+        request.setAttribute("meetAvailable", available);
+        request.setAttribute("unlocked", unlocked);
         request.setAttribute("isAdminViewer", !user.isPeserta());
         request.getRequestDispatcher("/user/meet-access.jsp").forward(request, response);
     }
 
     /** Tautan aktif untuk siswa: meet_links dulu, baru kolom gdrive_link lama. */
-    private String resolveLink(User user) {
+    private MeetTarget resolveTarget(User user) {
         try {
             MeetLinkDAO.MeetLink link = meetLinkDAO.findForStudent(user.getTag(), user.getGradeLevel());
             if (link != null && isAllowed(link.url)) {
-                return link.url;
+                return new MeetTarget(link.id, link.url, link.title, link.scheduleInfo);
             }
         } catch (Exception ignored) {
             // lanjut ke fallback
         }
-        return user.getGdriveLink() == null ? "" : user.getGdriveLink().trim();
+        String url = user.getGdriveLink() == null ? "" : user.getGdriveLink().trim();
+        return new MeetTarget(null, url, "Sesi Belajar Google Meet", null);
+    }
+
+    static String accessReference(Integer linkId, String url, LocalDate date) {
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256")
+                    .digest(url.getBytes(StandardCharsets.UTF_8));
+            StringBuilder ref = new StringBuilder("meet:")
+                    .append(linkId == null ? "legacy" : linkId).append(':')
+                    .append(date).append(':');
+            for (byte b : digest) {
+                ref.append(Character.forDigit((b >>> 4) & 0xf, 16));
+                ref.append(Character.forDigit(b & 0xf, 16));
+            }
+            return ref.toString();
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 unavailable", e);
+        }
+    }
+
+    private static class MeetTarget {
+        final Integer id;
+        final String url;
+        final String title;
+        final String scheduleInfo;
+
+        MeetTarget(Integer id, String url, String title, String scheduleInfo) {
+            this.id = id;
+            this.url = url;
+            this.title = title;
+            this.scheduleInfo = scheduleInfo;
+        }
     }
 
     private User refresh(User sessionUser, HttpSession session) {

@@ -9,6 +9,16 @@ import java.sql.*;
  */
 public class QuotaDAO {
 
+    public static class GMeetCharge {
+        public final int balance;
+        public final boolean charged;
+
+        public GMeetCharge(int balance, boolean charged) {
+            this.balance = balance;
+            this.charged = charged;
+        }
+    }
+
     /**
      * Saldo berada di luar rentang 0..max setelah perubahan.
      */
@@ -65,6 +75,55 @@ public class QuotaDAO {
         } finally {
             if (conn != null) {
                 try { conn.setAutoCommit(true); conn.close(); } catch (SQLException e) { }
+            }
+        }
+    }
+
+    /** Charge at most once per user and meeting reference, across sessions and servers. */
+    public GMeetCharge consumeGMeetOnce(int userId, String referenceId, String month)
+            throws SQLException, LimitException {
+        try (Connection conn = DBUtil.getConnection()) {
+            conn.setAutoCommit(false);
+            try {
+                int balance = lockBalance(conn, userId, month);
+                // The user row lock serializes the check and insert for concurrent clicks.
+                if (hasGMeetAccess(conn, userId, referenceId)) {
+                    updateBalance(conn, userId, balance, month);
+                    conn.commit();
+                    return new GMeetCharge(balance, false);
+                }
+                if (balance < 1) {
+                    updateBalance(conn, userId, balance, month);
+                    conn.commit();
+                    throw new LimitException(balance);
+                }
+                updateBalance(conn, userId, balance - 1, month);
+                insertLog(conn, userId, -1, balance - 1, "gmeet", referenceId);
+                conn.commit();
+                return new GMeetCharge(balance - 1, true);
+            } catch (SQLException | RuntimeException e) {
+                conn.rollback();
+                throw e;
+            } finally {
+                conn.setAutoCommit(true);
+            }
+        }
+    }
+
+    public boolean hasGMeetAccess(int userId, String referenceId) throws SQLException {
+        try (Connection conn = DBUtil.getConnection()) {
+            return hasGMeetAccess(conn, userId, referenceId);
+        }
+    }
+
+    private boolean hasGMeetAccess(Connection conn, int userId, String referenceId) throws SQLException {
+        try (PreparedStatement stmt = conn.prepareStatement(
+                "SELECT 1 FROM quota_logs WHERE user_id = ? AND reason = 'gmeet' "
+                        + "AND reference_id = ? LIMIT 1")) {
+            stmt.setInt(1, userId);
+            stmt.setString(2, referenceId);
+            try (ResultSet rs = stmt.executeQuery()) {
+                return rs.next();
             }
         }
     }
