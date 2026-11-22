@@ -12,11 +12,12 @@ import jakarta.servlet.annotation.MultipartConfig;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.*;
 
-import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.*;
 import java.sql.SQLException;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 
 @WebServlet("/MateriServlet")
@@ -34,7 +35,8 @@ public class MateriServlet extends HttpServlet {
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        User currentUser = (User) request.getSession().getAttribute("user");
+        HttpSession session = request.getSession(false);
+        User currentUser = session == null ? null : (User) session.getAttribute("user");
         String action = request.getParameter("action");
 
         // Show to anyone logged in
@@ -49,11 +51,15 @@ public class MateriServlet extends HttpServlet {
             if ("list".equals(action) || action == null) {
                 showList(request, response, currentUser, isAdmin);
             } else if ("adminList".equals(action)) {
+                if (!isAdmin) {
+                    response.sendError(HttpServletResponse.SC_FORBIDDEN);
+                    return;
+                }
                 showAdminList(request, response);
             } else if ("view".equals(action)) {
                 int id = Integer.parseInt(request.getParameter("id"));
-                Material mat = materialDAO.findById(id);
-                if (mat != null && mat.getIsActive()) {
+                Material mat = isAdmin ? materialDAO.findById(id) : materialDAO.findVisibleById(id, currentUser.getTag());
+                if (mat != null && (isAdmin || Boolean.TRUE.equals(mat.getIsActive()))) {
                     materialDAO.incrementViewCount(id);
                     request.setAttribute("material", mat);
                     request.getRequestDispatcher("/user/materi-view.jsp").forward(request, response);
@@ -62,21 +68,23 @@ public class MateriServlet extends HttpServlet {
                 }
             } else if ("download".equals(action)) {
                 int id = Integer.parseInt(request.getParameter("id"));
-                Material mat = materialDAO.findById(id);
-                if (mat != null && mat.getIsActive() && mat.getFilePath() != null) {
-                    materialDAO.logDownload(id, currentUser.getId());
-                    String path = getServletContext().getRealPath("/uploads/materials/" + mat.getFilePath());
-                    File file = new File(path);
-                    if (file.exists()) {
-                        response.setContentType(getContentType(mat.getFileType()));
-                        response.setHeader("Content-Disposition", "attachment; filename=\"" + mat.getTitle() + "." + mat.getFileType() + "\"");
-                        Files.copy(file.toPath(), response.getOutputStream());
-                        response.getOutputStream().flush();
-                    } else {
-                        request.setAttribute("error", "File tidak ditemukan");
-                        showList(request, response, currentUser, isAdmin);
-                    }
+                Material mat = isAdmin ? materialDAO.findById(id) : materialDAO.findVisibleById(id, currentUser.getTag());
+                if (mat == null || (!isAdmin && !Boolean.TRUE.equals(mat.getIsActive()))
+                        || !isSafeFileName(mat.getFilePath())) {
+                    response.sendError(HttpServletResponse.SC_NOT_FOUND);
+                    return;
                 }
+                Path file = materialsDirectory().resolve(mat.getFilePath());
+                if (!Files.isRegularFile(file)) {
+                    response.sendError(HttpServletResponse.SC_NOT_FOUND);
+                    return;
+                }
+                response.setContentType(getContentType(mat.getFilePath()));
+                response.setHeader("X-Content-Type-Options", "nosniff");
+                response.setHeader("Content-Disposition",
+                        "attachment; filename=\"materi-" + id + "." + fileExtension(mat.getFilePath()) + "\"");
+                Files.copy(file, response.getOutputStream());
+                materialDAO.logDownload(id, currentUser.getId());
             } else {
                 showList(request, response, currentUser, isAdmin);
             }
@@ -93,7 +101,8 @@ public class MateriServlet extends HttpServlet {
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        User currentUser = (User) request.getSession().getAttribute("user");
+        HttpSession session = request.getSession(false);
+        User currentUser = session == null ? null : (User) session.getAttribute("user");
         if (currentUser == null) {
             response.sendRedirect("../LoginServlet");
             return;
@@ -129,12 +138,7 @@ public class MateriServlet extends HttpServlet {
     private void showList(HttpServletRequest request, HttpServletResponse response, User user, boolean isAdmin)
             throws ServletException, IOException, SQLException {
         String tag = user.getTag();
-        List<Material> materials;
-        if (tag != null && !tag.trim().isEmpty()) {
-            materials = materialDAO.findByTag(tag.trim());
-        } else {
-            materials = materialDAO.findAll();
-        }
+        List<Material> materials = isAdmin ? materialDAO.findAll() : materialDAO.findByTag(tag);
         List<MaterialCategory> categories = categoryDAO.findAll();
         request.setAttribute("materials", materials);
         request.setAttribute("categories", categories);
@@ -160,6 +164,9 @@ public class MateriServlet extends HttpServlet {
         String targetTags = request.getParameter("target_tags");
         String fileType = request.getParameter("file_type");
         String content = request.getParameter("content");
+        if (title == null || title.isBlank() || title.length() > 255 || categoryDAO.findById(categoryId) == null) {
+            throw new IllegalArgumentException("Judul atau kategori materi tidak valid.");
+        }
 
         Material material = new Material();
         material.setCategoryId(categoryId);
@@ -175,11 +182,19 @@ public class MateriServlet extends HttpServlet {
         // Handle file upload
         Part filePart = request.getPart("file");
         if (filePart != null && filePart.getSize() > 0) {
-            String fileName = UUID.randomUUID().toString() + "." + getFileExtension(filePart);
-            String uploadPath = getServletContext().getRealPath("/uploads/materials");
-            Files.createDirectories(Paths.get(uploadPath));
-            filePart.write(uploadPath + "/" + fileName);
+            String extension = fileExtension(filePart.getSubmittedFileName());
+            if (!isAllowedExtension(extension)) {
+                throw new IllegalArgumentException("File materi harus PDF, DOC, DOCX, JPG, atau PNG.");
+            }
+            String fileName = UUID.randomUUID() + "." + extension;
+            Path directory = materialsDirectory();
+            Files.createDirectories(directory);
+            try (InputStream input = filePart.getInputStream()) {
+                Files.copy(input, directory.resolve(fileName));
+            }
             material.setFilePath(fileName);
+            material.setFileType("jpg".equals(extension) || "jpeg".equals(extension) || "png".equals(extension)
+                    ? "image" : extension);
             material.setFileSize(filePart.getSize());
         }
 
@@ -276,27 +291,39 @@ public class MateriServlet extends HttpServlet {
                "- Pengayaan bagi yang mendapat nilai > 85\n";
     }
 
-    private String getFileExtension(Part part) {
-        String contentDisp = part.getHeader("content-disposition");
-        if (contentDisp != null) {
-            String[] tokens = contentDisp.split(";");
-            for (String token : tokens) {
-                if (token.trim().startsWith("filename")) {
-                    String fileName = token.substring(token.indexOf('=') + 1).trim().replace("\"", "");
-                    int dotIndex = fileName.lastIndexOf('.');
-                    return dotIndex >= 0 ? fileName.substring(dotIndex + 1).toLowerCase() : "pdf";
-                }
-            }
+    private Path materialsDirectory() {
+        String uploads = System.getenv("EXATUY_UPLOADS_DIR");
+        if (uploads != null && !uploads.isBlank()) {
+            return Paths.get(uploads, "materials");
         }
-        return "pdf";
+        // Keep files outside the deployed webapp so a direct URL cannot bypass tag checks.
+        return Paths.get(System.getProperty("catalina.base", System.getProperty("user.home")),
+                "uploads", "materials");
     }
 
-    private String getContentType(String fileType) {
-        switch (fileType) {
+    static String fileExtension(String name) {
+        if (name == null) return "";
+        int dot = name.lastIndexOf('.');
+        return dot < 0 ? "" : name.substring(dot + 1).toLowerCase(Locale.ROOT);
+    }
+
+    static boolean isAllowedExtension(String extension) {
+        return "pdf".equals(extension) || "doc".equals(extension) || "docx".equals(extension)
+                || "jpg".equals(extension) || "jpeg".equals(extension) || "png".equals(extension);
+    }
+
+    static boolean isSafeFileName(String name) {
+        return name != null && !name.isBlank() && !name.contains("/") && !name.contains("\\")
+                && !name.equals(".") && !name.equals("..") && isAllowedExtension(fileExtension(name));
+    }
+
+    private String getContentType(String name) {
+        switch (fileExtension(name)) {
             case "pdf": return "application/pdf";
             case "doc": return "application/msword";
             case "docx": return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-            case "image": return "image/jpeg";
+            case "png": return "image/png";
+            case "jpg": case "jpeg": return "image/jpeg";
             default: return "application/octet-stream";
         }
     }

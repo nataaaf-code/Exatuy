@@ -41,7 +41,7 @@ public class QuestionDAO {
             } else {
                 stmt.setNull(10, Types.INTEGER);
             }
-            stmt.setBoolean(11, false);
+            stmt.setBoolean(11, question.getQuizId() == null);
             stmt.setString(12, question.getExplanation());
 
             int affectedRows = stmt.executeUpdate();
@@ -59,6 +59,17 @@ public class QuestionDAO {
             }
 
             return question;
+        }
+    }
+
+    public Integer findCategoryIdByName(String name) throws SQLException {
+        try (Connection conn = DBUtil.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(
+                     "SELECT id FROM question_categories WHERE name = ? LIMIT 1")) {
+            stmt.setString(1, name);
+            try (ResultSet rs = stmt.executeQuery()) {
+                return rs.next() ? rs.getInt(1) : null;
+            }
         }
     }
 

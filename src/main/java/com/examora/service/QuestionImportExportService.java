@@ -1,5 +1,6 @@
 package com.examora.service;
 
+import com.examora.dao.QuestionDAO;
 import com.examora.model.Question;
 
 import com.itextpdf.text.*;
@@ -15,12 +16,15 @@ import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Service for importing and exporting questions in CSV and PDF formats
  */
 public class QuestionImportExportService {
-    private QuizService quizService;
+    private final QuizService quizService;
+    private final QuestionDAO questionDAO;
 
     // CSV Headers
     private static final String[] CSV_HEADERS = {
@@ -29,7 +33,12 @@ public class QuestionImportExportService {
     };
 
     public QuestionImportExportService() {
-        this.quizService = new QuizService();
+        this(new QuizService(), new QuestionDAO());
+    }
+
+    QuestionImportExportService(QuizService quizService, QuestionDAO questionDAO) {
+        this.quizService = quizService;
+        this.questionDAO = questionDAO;
     }
 
     /**
@@ -42,11 +51,21 @@ public class QuestionImportExportService {
         ImportResult result = new ImportResult();
         List<Question> questions = new ArrayList<>();
 
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8));
+        try (BufferedReader reader = csvReader(inputStream);
              CSVParser csvParser = new CSVParser(reader, CSVFormat.DEFAULT
                  .withFirstRecordAsHeader()
                  .withIgnoreHeaderCase()
                  .withTrim())) {
+            Set<String> headers = csvParser.getHeaderMap().keySet().stream()
+                    .map(s -> s.replace("\uFEFF", "").toLowerCase(java.util.Locale.ROOT))
+                    .collect(Collectors.toSet());
+            for (String required : CSV_HEADERS) {
+                if (!"category".equals(required) && !"explanation".equals(required)
+                        && !headers.contains(required)) {
+                    result.addError("Kolom CSV wajib tidak ditemukan: " + required);
+                    return result;
+                }
+            }
 
             for (CSVRecord record : csvParser) {
                 try {
@@ -75,6 +94,8 @@ public class QuestionImportExportService {
                             question.getCategoryId(),
                             question.getExplanation()
                         );
+                    } else {
+                        questionDAO.create(question);
                     }
                     result.incrementSuccess();
                 } catch (Exception e) {
@@ -82,17 +103,26 @@ public class QuestionImportExportService {
                 }
             }
 
-        } catch (IOException e) {
-            result.addError("Error membaca file CSV: " + e.getMessage());
+        } catch (IOException | IllegalArgumentException e) {
+            result.addError("Format CSV tidak valid: " + e.getMessage());
         }
 
         return result;
     }
 
+    private static BufferedReader csvReader(InputStream inputStream) throws IOException {
+        BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8));
+        reader.mark(1);
+        if (reader.read() != '\uFEFF') {
+            reader.reset();
+        }
+        return reader;
+    }
+
     /**
      * Parse a CSV record into a Question object
      */
-    private Question parseCSVRecord(CSVRecord record, Integer quizId) {
+    private Question parseCSVRecord(CSVRecord record, Integer quizId) throws java.sql.SQLException {
         String questionText = record.get("question_text");
         String optionA = record.get("option_a");
         String optionB = record.get("option_b");
@@ -135,8 +165,17 @@ public class QuestionImportExportService {
         question.setOptionD(optionD.trim());
         question.setCorrectAnswer(correctAnswer);
 
+        String category = record.isMapped("category") ? record.get("category").trim() : "";
+        if (!category.isEmpty()) {
+            Integer categoryId = questionDAO.findCategoryIdByName(category);
+            if (categoryId == null) {
+                throw new IllegalArgumentException("Kategori belum ada: " + category);
+            }
+            question.setCategoryId(categoryId);
+        }
+
         // Optional: explanation
-        String explanation = record.get("explanation");
+        String explanation = record.isMapped("explanation") ? record.get("explanation") : null;
         if (explanation != null && !explanation.trim().isEmpty()) {
             question.setExplanation(explanation.trim());
         }
@@ -304,7 +343,7 @@ public class QuestionImportExportService {
                 "Surabaya",
                 "Medan",
                 "A",
-                "Geografi",
+                "",
                 "Jakarta adalah ibukota negara Indonesia sejak kemerdekaan."
             );
 
