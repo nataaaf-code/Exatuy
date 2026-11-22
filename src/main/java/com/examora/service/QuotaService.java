@@ -38,6 +38,15 @@ public class QuotaService {
     }
 
     /**
+     * Pastikan saldo cukup untuk 1 kali Exam/GMeet tanpa memotongnya.
+     */
+    public void requireBalance(int userId) throws ServiceException {
+        if (getBalance(userId) < 1) {
+            throw new ServiceException(emptyQuotaMessage());
+        }
+    }
+
+    /**
      * Validasi pembelian sebelum checkout: saldo setelah top-up tidak boleh melebihi 12.
      *
      * @return saldo saat ini
@@ -92,6 +101,11 @@ public class QuotaService {
         }
     }
 
+    static String emptyQuotaMessage() {
+        return "Kuota/poin belajar kamu sudah habis. Silakan beli paket kuota (maks. "
+                + MAX_QUOTA + " poin) untuk mengikuti Exam atau GMeet.";
+    }
+
     static String topUpLimitMessage(int balance) {
         return "Saldo kuota maksimal " + MAX_QUOTA + " poin. Saldo kamu saat ini " + balance
                 + " poin, jadi maksimal bisa membeli " + (MAX_QUOTA - balance) + " poin lagi.";
@@ -102,8 +116,7 @@ public class QuotaService {
             return quotaDAO.applyChange(userId, delta, MAX_QUOTA, reason, referenceId, monthKey(Instant.now()));
         } catch (QuotaDAO.LimitException e) {
             if (delta < 0) {
-                throw new ServiceException("Kuota/poin belajar kamu sudah habis. Silakan beli paket kuota (maks. "
-                        + MAX_QUOTA + " poin) untuk mengikuti Exam atau GMeet.");
+                throw new ServiceException(emptyQuotaMessage());
             }
             throw new ServiceException(topUpLimitMessage(e.getBalance()));
         } catch (SQLException e) {

@@ -21,6 +21,7 @@ import com.examora.service.RetakeCodeService;
 import com.examora.service.AuditService;
 import com.examora.service.QuotaService;
 import com.examora.model.RetakeCode;
+import com.google.gson.JsonObject;
 
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
@@ -52,6 +53,11 @@ public class ExamServlet extends HttpServlet {
     private QuizExemptionDAO quizExemptionDAO;
     private RetakeCodeDAO retakeCodeDAO;
     private QuotaService quotaService;
+
+    /** Toleransi latensi jaringan (detik) untuk jawaban/submit yang tiba setelah waktu habis */
+    static final int SUBMIT_GRACE_SECONDS = 5;
+
+    private static final Map<Integer, Object> START_LOCKS = new java.util.concurrent.ConcurrentHashMap<>();
 
     @Override
     public void init() throws ServletException {
@@ -465,36 +471,77 @@ public class ExamServlet extends HttpServlet {
             allowRetake = isManuallyAllowed;
         }
 
-        // For retake cases (retake code or manual permission), delete old timeout submission if exists
-        if (allowRetake) {
+        // Izin manual = siswa didaftarkan pengajar sebagai peserta kuis ini.
+        // Kuis tanpa daftar peserta juga "allowed", tetapi itu bukan izin retake.
+        boolean isExplicitParticipant = false;
+        if (isManuallyAllowed) {
             try {
-                Submission existingSubmission = submissionService.getUserSubmission(user.getId(), quizId);
-                if (existingSubmission != null && existingSubmission.isTimeout()) {
-                    submissionDAO.deleteSubmission(existingSubmission.getId());
-                    System.out.println("Deleted timeout submission " + existingSubmission.getId() + " for retake (allowed=" + allowRetake + ")");
-                }
+                isExplicitParticipant = quizParticipantDAO.hasAnyParticipants(quizId);
             } catch (Exception e) {
-                System.err.println("Error deleting timeout submission: " + e.getMessage());
+                System.err.println("Error checking participant list: " + e.getMessage());
             }
         }
 
-        // P1 #15 — potong 1 poin kuota saat siswa memulai Exam.
-        // Percobaan ulang lewat kode retake / izin manual tidak dipotong lagi.
-        if (!allowRetake) {
+        Submission submission = null;
+        String quotaError = null;
+
+        // Satu "mulai exam" per siswa pada satu waktu, supaya klik ganda tidak
+        // membuat sesi atau memotong poin dua kali.
+        synchronized (START_LOCKS.computeIfAbsent(user.getId(), id -> new Object())) {
+            Submission existingSubmission = submissionService.getUserSubmission(user.getId(), quizId);
+            boolean resuming = existingSubmission != null && existingSubmission.isInProgress();
+            boolean replacesTimeout = allowRetake && existingSubmission != null && existingSubmission.isTimeout();
+
+            // P1 #15 — setiap sesi Exam baru memotong 1 poin kuota.
+            // Melanjutkan sesi yang masih berjalan dan percobaan ulang lewat kode retake /
+            // izin manual tidak dipotong lagi.
+            boolean chargeQuota = shouldChargeQuota(user.isPeserta(), resuming, hasValidatedRetake,
+                    replacesTimeout && isExplicitParticipant);
+
             try {
-                quotaService.consume(user.getId(), "exam", "quiz:" + quizId);
-            } catch (QuotaService.ServiceException quotaEx) {
-                request.setAttribute("error", quotaEx.getMessage());
-                try {
-                    listAvailableQuizzes(request, response);
-                } catch (UserService.ServiceException userEx) {
-                    throw new ServletException(userEx);
+                if (chargeQuota) {
+                    quotaService.requireBalance(user.getId());
                 }
-                return;
+
+                // For retake cases (retake code or manual permission), delete old timeout submission if exists
+                if (replacesTimeout) {
+                    try {
+                        submissionDAO.deleteSubmission(existingSubmission.getId());
+                        System.out.println("Deleted timeout submission " + existingSubmission.getId() + " for retake (allowed=" + allowRetake + ")");
+                    } catch (Exception e) {
+                        System.err.println("Error deleting timeout submission: " + e.getMessage());
+                    }
+                }
+
+                submission = submissionService.startQuiz(quizId, user.getId(), hasValidatedRetake);
+
+                // Poin dipotong setelah sesi benar-benar dibuat, jadi gagal mulai tidak memakan poin.
+                if (chargeQuota) {
+                    try {
+                        user.setQuotaBalance(quotaService.consume(user.getId(), "exam", "quiz:" + quizId));
+                    } catch (QuotaService.ServiceException quotaEx) {
+                        try {
+                            submissionDAO.deleteSubmission(submission.getId());
+                        } catch (SQLException e) {
+                            System.err.println("Error cancelling unpaid submission " + submission.getId() + ": " + e.getMessage());
+                        }
+                        throw quotaEx;
+                    }
+                }
+            } catch (QuotaService.ServiceException quotaEx) {
+                quotaError = quotaEx.getMessage();
             }
         }
 
-        Submission submission = submissionService.startQuiz(quizId, user.getId(), hasValidatedRetake);
+        if (quotaError != null) {
+            request.setAttribute("error", quotaError);
+            try {
+                listAvailableQuizzes(request, response);
+            } catch (UserService.ServiceException userEx) {
+                throw new ServletException(userEx);
+            }
+            return;
+        }
 
         // Log quiz access
         java.util.Map<String, Object> logData = new java.util.HashMap<>();
@@ -676,9 +723,9 @@ public class ExamServlet extends HttpServlet {
             try { submissionDAO.updateActivity(submissionId, 120); } catch (Exception e) {}
             submission = submissionDAO.findById(submissionId);
 
-            // Check if quiz time has expired (server-side validation)
+            // Check if quiz time has expired (server-side validation, with latency grace)
             Quiz quiz = quizService.getQuizById(submission.getQuizId());
-            if (isTimeExpired(submission, quiz)) {
+            if (isPastGrace(submission, quiz)) {
                 // Auto-submit with timeout status
                 int timeSpent = calculateTimeSpent(submission);
                 submissionService.submitQuizWithTimeout(submissionId, timeSpent);
@@ -750,6 +797,19 @@ public class ExamServlet extends HttpServlet {
                     response.sendRedirect(request.getContextPath() + "/ExamServlet?action=result&submissionId=" + submissionId);
                 }
                 return;
+            }
+
+            // Batas waktu divalidasi di server: submit yang tiba melewati toleransi latensi
+            // dicatat sebagai timeout, apa pun yang dikirim client.
+            try { submissionDAO.updateActivity(submissionId, 120); } catch (Exception e) {}
+            existingSubmission = submissionDAO.findById(submissionId);
+            try {
+                Quiz timedQuiz = quizService.getQuizById(existingSubmission.getQuizId());
+                if (timedQuiz != null && isPastGrace(existingSubmission, timedQuiz)) {
+                    isTimeout = true;
+                }
+            } catch (QuizService.ServiceException e) {
+                System.err.println("Error validating submit deadline: " + e.getMessage());
             }
 
             // Always use the server-calculated timeSpent as the source of truth.
@@ -1124,33 +1184,12 @@ public class ExamServlet extends HttpServlet {
             String savedAnswer = submissionService.getSavedAnswerForQuestion(submission.getId(), q.getId());
 
             // Build JSON response (without correctAnswer)
-            StringBuilder json = new StringBuilder();
-            json.append("{");
-            json.append("\"success\":true,");
-            json.append("\"questionId\":").append(q.getId()).append(",");
-            json.append("\"questionNumber\":").append(questionIndex + 1).append(",");
-            json.append("\"totalQuestions\":").append(totalQ).append(",");
-            json.append("\"questionText\":").append(escapeJson(q.getQuestionText())).append(",");
-
-            if (q.getImagePath() != null && !q.getImagePath().isEmpty()) {
-                json.append("\"imagePath\":\"").append(escapeJson(q.getImagePath())).append("\",");
-            }
-
-            json.append("\"optionA\":").append(escapeJson(q.getOptionA())).append(",");
-            json.append("\"optionB\":").append(escapeJson(q.getOptionB())).append(",");
-            json.append("\"optionC\":").append(escapeJson(q.getOptionC())).append(",");
-            json.append("\"optionD\":").append(escapeJson(q.getOptionD())).append(",");
-
-            if (savedAnswer != null) {
-                json.append("\"savedAnswer\":\"").append(savedAnswer).append("\",");
-            }
-
-            json.append("\"remainingTime\":").append(calculateRemainingTime(submission, quiz));
-            json.append("}");
+            String json = buildQuestionJson(q, questionIndex + 1, totalQ, savedAnswer,
+                    calculateRemainingTime(submission, quiz));
 
             response.setContentType("application/json");
             response.setCharacterEncoding("UTF-8");
-            response.getWriter().write(json.toString());
+            response.getWriter().write(json);
 
         } catch (NumberFormatException e) {
             response.setContentType("application/json");
@@ -1163,15 +1202,37 @@ public class ExamServlet extends HttpServlet {
         }
     }
 
-    private String escapeJson(String value) {
-        if (value == null) return "null";
-        return "\"" + value
-            .replace("\\", "\\\\")
-            .replace("\"", "\\\"")
-            .replace("\n", "\\n")
-            .replace("\r", "\\r")
-            .replace("\t", "\\t")
-            + "\"";
+    /**
+     * Data satu soal untuk Exam Reader. Kunci jawaban tidak pernah ikut dikirim.
+     */
+    static String buildQuestionJson(Question q, int questionNumber, int totalQuestions, String savedAnswer,
+                                    int remainingTime) {
+        JsonObject json = new JsonObject();
+        json.addProperty("success", true);
+        json.addProperty("questionId", q.getId());
+        json.addProperty("questionNumber", questionNumber);
+        json.addProperty("totalQuestions", totalQuestions);
+        json.addProperty("questionText", q.getQuestionText());
+        if (q.getImagePath() != null && !q.getImagePath().isEmpty()) {
+            json.addProperty("imagePath", q.getImagePath());
+        }
+        json.addProperty("optionA", q.getOptionA());
+        json.addProperty("optionB", q.getOptionB());
+        json.addProperty("optionC", q.getOptionC());
+        json.addProperty("optionD", q.getOptionD());
+        if (savedAnswer != null) {
+            json.addProperty("savedAnswer", savedAnswer);
+        }
+        json.addProperty("remainingTime", remainingTime);
+        return json.toString();
+    }
+
+    /**
+     * Sesi Exam baru memotong 1 poin. Tidak dipotong: admin, melanjutkan sesi yang masih
+     * berjalan, retake dengan kode dari pengajar, dan retake dengan izin manual.
+     */
+    static boolean shouldChargeQuota(boolean isPeserta, boolean resuming, boolean retakeCode, boolean manualRetake) {
+        return isPeserta && !resuming && !retakeCode && !manualRetake;
     }
 
     /**
@@ -1179,6 +1240,18 @@ public class ExamServlet extends HttpServlet {
      */
     private boolean isTimeExpired(Submission submission, Quiz quiz) {
         return calculateRemainingTime(submission, quiz) <= 0;
+    }
+
+    /**
+     * Waktu sudah habis lebih lama dari toleransi latensi jaringan
+     */
+    private boolean isPastGrace(Submission submission, Quiz quiz) {
+        return isPastGrace(remainingSeconds(submission.getStartedAt(), submission.getAccumulatedPauseSeconds(),
+                quiz.getDuration(), LocalDateTime.now()));
+    }
+
+    static boolean isPastGrace(long remainingSeconds) {
+        return remainingSeconds < -SUBMIT_GRACE_SECONDS;
     }
 
     /**
@@ -1198,15 +1271,25 @@ public class ExamServlet extends HttpServlet {
      * Calculate remaining time in seconds
      */
     private int calculateRemainingTime(Submission submission, Quiz quiz) {
-        if (submission.getStartedAt() == null || quiz.getDuration() == null) {
-            return quiz.getDuration() != null ? quiz.getDuration() * 60 : 0;
+        return (int) Math.max(0, remainingSeconds(submission.getStartedAt(), submission.getAccumulatedPauseSeconds(),
+                quiz.getDuration(), LocalDateTime.now()));
+    }
+
+    /**
+     * Sisa waktu dalam detik; negatif jika batas waktu sudah lewat
+     */
+    static long remainingSeconds(LocalDateTime startedAt, Integer pauseSeconds, Integer durationMinutes,
+                                 LocalDateTime now) {
+        if (durationMinutes == null) {
+            return 0;
         }
-        LocalDateTime now = LocalDateTime.now();
-        Duration elapsed = Duration.between(submission.getStartedAt(), now);
-        long totalDurationSeconds = quiz.getDuration() * 60L;
+        long totalDurationSeconds = durationMinutes * 60L;
+        if (startedAt == null) {
+            return totalDurationSeconds;
+        }
+        Duration elapsed = Duration.between(startedAt, now);
         // Subtract accumulated pause time (time user was offline/tab hidden)
-        int pauseSeconds = submission.getAccumulatedPauseSeconds() != null ? submission.getAccumulatedPauseSeconds() : 0;
-        long remaining = totalDurationSeconds - elapsed.getSeconds() + pauseSeconds;
-        return (int) Math.max(0, remaining);
+        int pause = pauseSeconds != null ? pauseSeconds : 0;
+        return totalDurationSeconds - elapsed.getSeconds() + pause;
     }
 }
