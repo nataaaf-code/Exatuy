@@ -34,6 +34,7 @@
     <title>Pembayaran Kuota - Exatuy</title>
     <link href="../assets/vendor/bootstrap.min.css" rel="stylesheet">
     <link href="../assets/vendor/bootstrap-icons.css" rel="stylesheet">
+    <link href="../assets/css/style.css" rel="stylesheet">
     <link href="../assets/css/handdrawn.css" rel="stylesheet">
 </head>
 <body class="bg-light">

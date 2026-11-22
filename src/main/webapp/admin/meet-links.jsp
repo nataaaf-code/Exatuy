@@ -27,6 +27,9 @@
     <title>Link Google Meet - Exatuy</title>
     <link href="../assets/vendor/bootstrap.min.css" rel="stylesheet">
     <link href="../assets/vendor/bootstrap-icons.css" rel="stylesheet">
+    <%-- Samakan urutan aset dengan halaman admin lain agar sidebar/menu konsisten --%>
+    <link href="../assets/css/style.css" rel="stylesheet">
+    <link href="../assets/css/handdrawn.css" rel="stylesheet">
 </head>
 <body class="bg-light">
 <%@ include file="sidebar.jsp" %>
