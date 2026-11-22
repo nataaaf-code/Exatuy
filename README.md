@@ -223,7 +223,8 @@ cd Exatuy-main
 # 1) WAJIB: migrasi database (idempoten, aman diulang) sebelum demo
 for f in sql/add_quota_wallet.sql sql/add_student_pin.sql \
          sql/migration_payment_cashin_quota.sql sql/reconcile_payment_settings.sql \
-         sql/add_announcement_category_grade.sql; do
+         sql/add_transaction_payment_details.sql sql/add_announcement_category_grade.sql \
+         sql/add_meet_links.sql; do
   docker exec -i examora-mysql sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" examora_db' < "$f"
 done
 
