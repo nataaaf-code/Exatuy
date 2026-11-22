@@ -8,6 +8,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class MaterialDAO {
+    private static final String VISIBLE_TO_STUDENT = "m.is_active = TRUE AND ("
+            + "m.target_tags IS NULL OR TRIM(m.target_tags) = '' "
+            + "OR UPPER(TRIM(m.target_tags)) = 'ALL' "
+            + "OR FIND_IN_SET(?, REPLACE(m.target_tags, ', ', ',')) > 0)";
 
     public List<Material> findAll() throws SQLException {
         List<Material> list = new ArrayList<>();
@@ -56,18 +60,30 @@ public class MaterialDAO {
         List<Material> list = new ArrayList<>();
         String sql = "SELECT m.*, mc.nama as category_name FROM materials m " +
                      "JOIN material_categories mc ON m.category_id = mc.id " +
-                     "WHERE m.is_active = TRUE AND (" +
-                     "(m.target_tags IS NULL OR m.target_tags = '' OR m.target_tags = 'ALL') OR " +
-                     "FIND_IN_SET(?, m.target_tags) > 0) " +
+                     "WHERE " + VISIBLE_TO_STUDENT + " " +
                      "ORDER BY mc.jenjang, mc.mata_pelajaran, m.created_at DESC";
         try (Connection conn = DBUtil.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
-            stmt.setString(1, userTag);
+            stmt.setString(1, userTag == null ? "" : userTag.trim());
             try (ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) list.add(mapRow(rs));
             }
         }
         return list;
+    }
+
+    public Material findVisibleById(int id, String userTag) throws SQLException {
+        String sql = "SELECT m.*, mc.nama as category_name FROM materials m " +
+                     "JOIN material_categories mc ON m.category_id = mc.id " +
+                     "WHERE m.id = ? AND " + VISIBLE_TO_STUDENT;
+        try (Connection conn = DBUtil.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setInt(1, id);
+            stmt.setString(2, userTag == null ? "" : userTag.trim());
+            try (ResultSet rs = stmt.executeQuery()) {
+                return rs.next() ? mapRow(rs) : null;
+            }
+        }
     }
 
     public Material findById(int id) throws SQLException {
@@ -147,7 +163,8 @@ public class MaterialDAO {
         try (Connection conn = DBUtil.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, materialId);
-            stmt.setNull(2, Types.INTEGER);
+            if (userId == null) stmt.setNull(2, Types.INTEGER);
+            else stmt.setInt(2, userId);
             stmt.executeUpdate();
         }
         String sql2 = "UPDATE materials SET download_count = download_count + 1 WHERE id = ?";
