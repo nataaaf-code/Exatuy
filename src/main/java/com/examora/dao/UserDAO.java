@@ -4,6 +4,7 @@ import com.examora.model.User;
 import com.examora.util.DBUtil;
 
 import java.sql.*;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -238,8 +239,114 @@ public class UserDAO {
             stmt.setString(1, pinHash);
             stmt.setInt(2, userId);
 
-            return stmt.executeUpdate() > 0;
+            boolean updated = stmt.executeUpdate() > 0;
+            resetPinFailures(userId);
+            return updated;
         }
+    }
+
+    /**
+     * PIN siswa beserta penghitung percobaan gagal.
+     */
+    public static class PinState {
+        public String pinHash;
+        public int failedAttempts;
+        public LocalDateTime lastFailedAt;
+    }
+
+    /**
+     * Get PIN hash and failed-attempt counter (null if the user does not exist).
+     * Bila kolom penghitung belum dimigrasi, hanya hash PIN yang dikembalikan.
+     */
+    public PinState findPinState(Integer userId) throws SQLException {
+        String sql = "SELECT pin_hash, pin_failed_attempts, pin_last_failed_at FROM users WHERE id = ?";
+
+        try (Connection conn = DBUtil.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+            stmt.setInt(1, userId);
+
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (!rs.next()) {
+                    return null;
+                }
+                PinState state = new PinState();
+                state.pinHash = rs.getString("pin_hash");
+                state.failedAttempts = rs.getInt("pin_failed_attempts");
+                Timestamp lastFailedAt = rs.getTimestamp("pin_last_failed_at");
+                state.lastFailedAt = lastFailedAt != null ? lastFailedAt.toLocalDateTime() : null;
+                return state;
+            }
+        } catch (SQLException e) {
+            PinState state = new PinState();
+            state.pinHash = findPinHash(userId);
+            return state;
+        }
+    }
+
+    /**
+     * Catat satu percobaan PIN yang gagal. Percobaan yang lebih lama dari windowMinutes tidak dihitung.
+     */
+    public void recordPinFailure(Integer userId, int windowMinutes) {
+        Connection conn = null;
+        try {
+            conn = DBUtil.getConnection();
+            conn.setAutoCommit(false);
+
+            int attempts = 0;
+            LocalDateTime lastFailedAt = null;
+            try (PreparedStatement stmt = conn.prepareStatement(
+                    "SELECT pin_failed_attempts, pin_last_failed_at FROM users WHERE id = ? FOR UPDATE")) {
+                stmt.setInt(1, userId);
+                try (ResultSet rs = stmt.executeQuery()) {
+                    if (rs.next()) {
+                        attempts = rs.getInt("pin_failed_attempts");
+                        Timestamp ts = rs.getTimestamp("pin_last_failed_at");
+                        lastFailedAt = ts != null ? ts.toLocalDateTime() : null;
+                    }
+                }
+            }
+
+            LocalDateTime now = LocalDateTime.now();
+            try (PreparedStatement stmt = conn.prepareStatement(
+                    "UPDATE users SET pin_failed_attempts = ?, pin_last_failed_at = ? WHERE id = ?")) {
+                stmt.setInt(1, nextPinFailureCount(attempts, lastFailedAt, now, windowMinutes));
+                stmt.setTimestamp(2, Timestamp.valueOf(now));
+                stmt.setInt(3, userId);
+                stmt.executeUpdate();
+            }
+            conn.commit();
+        } catch (SQLException e) {
+            if (conn != null) {
+                try { conn.rollback(); } catch (SQLException ex) { }
+            }
+            System.err.println("Warning: Failed to record PIN failure: " + e.getMessage());
+        } finally {
+            if (conn != null) {
+                try { conn.setAutoCommit(true); conn.close(); } catch (SQLException e) { }
+            }
+        }
+    }
+
+    /**
+     * Hapus penghitung PIN gagal (setelah login PIN berhasil atau PIN diganti admin).
+     */
+    public void resetPinFailures(Integer userId) {
+        String sql = "UPDATE users SET pin_failed_attempts = 0, pin_last_failed_at = NULL WHERE id = ?";
+
+        try (Connection conn = DBUtil.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+            stmt.setInt(1, userId);
+            stmt.executeUpdate();
+        } catch (SQLException e) {
+            System.err.println("Warning: Failed to reset PIN failures: " + e.getMessage());
+        }
+    }
+
+    static int nextPinFailureCount(int current, LocalDateTime lastFailedAt, LocalDateTime now, int windowMinutes) {
+        boolean stale = lastFailedAt == null || !lastFailedAt.plusMinutes(windowMinutes).isAfter(now);
+        return stale ? 1 : current + 1;
     }
 
     /**

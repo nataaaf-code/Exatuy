@@ -8,12 +8,17 @@ import com.examora.util.FileUploadUtil;
 
 import jakarta.servlet.http.Part;
 import java.sql.SQLException;
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
  * User Service - Business logic for user operations
  */
 public class UserService {
+    /** Percobaan PIN gagal berturut-turut sebelum login PIN akun itu dikunci */
+    static final int PIN_MAX_FAILURES = 5;
+    static final int PIN_LOCK_MINUTES = 15;
+
     private UserDAO userDAO;
 
     public UserService() {
@@ -273,24 +278,56 @@ public class UserService {
     /**
      * Siswa boleh login dengan PIN sebagai pengganti password.
      */
-    private boolean matchesPin(User user, String pin) throws SQLException {
+    private boolean matchesPin(User user, String pin) throws SQLException, ServiceException {
         if (!user.isPeserta() || !isValidPin(pin)) {
             return false;
         }
-        String pinHash = userDAO.findPinHash(user.getId());
-        return pinHash != null && PasswordUtil.verifyPassword(pin, pinHash);
+        UserDAO.PinState state = userDAO.findPinState(user.getId());
+        if (state == null || state.pinHash == null) {
+            return false;
+        }
+        if (isPinLocked(state.failedAttempts, state.lastFailedAt, LocalDateTime.now())) {
+            throw new ServiceException("Login dengan PIN dikunci sementara karena terlalu banyak percobaan gagal. "
+                    + "Coba lagi " + PIN_LOCK_MINUTES + " menit lagi atau hubungi pengajar.");
+        }
+        if (PasswordUtil.verifyPassword(pin, state.pinHash)) {
+            if (state.failedAttempts > 0) {
+                userDAO.resetPinFailures(user.getId());
+            }
+            return true;
+        }
+        userDAO.recordPinFailure(user.getId(), PIN_LOCK_MINUTES);
+        return false;
     }
 
+    /**
+     * Format PIN yang diterima saat login. PIN 4-5 digit yang dibuat sebelum aturan 6 digit tetap berlaku.
+     */
     static boolean isValidPin(String pin) {
         return pin != null && pin.matches("\\d{4,6}");
+    }
+
+    /**
+     * PIN baru wajib 6 digit.
+     */
+    static boolean isValidNewPin(String pin) {
+        return pin != null && pin.matches("\\d{6}");
+    }
+
+    /**
+     * Terkunci bila gagal 5 kali berturut-turut dan percobaan terakhir belum lewat 15 menit.
+     */
+    static boolean isPinLocked(int failedAttempts, LocalDateTime lastFailedAt, LocalDateTime now) {
+        return failedAttempts >= PIN_MAX_FAILURES && lastFailedAt != null
+                && lastFailedAt.plusMinutes(PIN_LOCK_MINUTES).isAfter(now);
     }
 
     /**
      * Set PIN siswa oleh admin
      */
     public void setPinByAdmin(Integer id, String pin) throws ServiceException {
-        if (!isValidPin(pin)) {
-            throw new ServiceException("PIN harus 4-6 digit angka");
+        if (!isValidNewPin(pin)) {
+            throw new ServiceException("PIN harus 6 digit angka");
         }
 
         try {

@@ -8,6 +8,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.util.Base64;
+import java.util.logging.Logger;
 
 /**
  * CryptoUtil - AES-256-GCM encryption/decryption utility for sensitive credentials
@@ -20,12 +21,48 @@ public class CryptoUtil {
     private static final int GCM_TAG_LENGTH = 128;
 
     private static final String DEFAULT_SECRET = "Exatuy-BimbelMentari-AES256-Key-2026";
+    private static final Logger LOGGER = Logger.getLogger(CryptoUtil.class.getName());
+    private static volatile boolean defaultKeyWarned;
+
+    /**
+     * Kunci enkripsi diambil dari env EXATUY_ENCRYPTION_KEY, lalu system property
+     * exatuy.encryption.key. Kunci bawaan yang tertulis di source hanya dipakai bila
+     * EXATUY_ALLOW_DEFAULT_KEY=true (pengembangan lokal), karena siapa pun yang memegang
+     * source bisa mendekripsi data yang dienkripsi dengannya.
+     */
+    static String resolveSecret(String envKey, String propertyKey, String allowDefault) {
+        if (envKey != null && !envKey.trim().isEmpty()) {
+            return envKey;
+        }
+        if (propertyKey != null && !propertyKey.trim().isEmpty()) {
+            return propertyKey;
+        }
+        if ("true".equalsIgnoreCase(allowDefault)) {
+            if (!defaultKeyWarned) {
+                defaultKeyWarned = true;
+                LOGGER.warning("Memakai kunci enkripsi bawaan untuk pengembangan. JANGAN dipakai di produksi.");
+            }
+            return DEFAULT_SECRET;
+        }
+        throw new IllegalStateException(
+                "EXATUY_ENCRYPTION_KEY belum diset di server, jadi kredensial tidak dapat dienkripsi.");
+    }
+
+    /**
+     * True bila server punya kunci enkripsi (atau kunci bawaan diizinkan secara eksplisit).
+     */
+    public static boolean isKeyConfigured() {
+        try {
+            getSecretKey();
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
 
     private static SecretKey getSecretKey() throws Exception {
-        String secret = System.getenv("EXATUY_ENCRYPTION_KEY");
-        if (secret == null || secret.trim().isEmpty()) {
-            secret = System.getProperty("exatuy.encryption.key", DEFAULT_SECRET);
-        }
+        String secret = resolveSecret(System.getenv("EXATUY_ENCRYPTION_KEY"),
+                System.getProperty("exatuy.encryption.key"), System.getenv("EXATUY_ALLOW_DEFAULT_KEY"));
         MessageDigest sha = MessageDigest.getInstance("SHA-256");
         byte[] keyBytes = sha.digest(secret.getBytes(StandardCharsets.UTF_8));
         return new SecretKeySpec(keyBytes, ALGORITHM);

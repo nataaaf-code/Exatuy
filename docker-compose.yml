@@ -44,6 +44,9 @@ services:
       - DB_USERNAME=examora_app
       - DB_PASSWORD=${MYSQL_PASSWORD}
       - AI_SERVICE_BASE_URL=${AI_SERVICE_BASE_URL:-http://ai-service:8000}
+      # Kunci enkripsi kredensial pembayaran (AES-256). Wajib diisi di .env.
+      - EXATUY_ENCRYPTION_KEY=${EXATUY_ENCRYPTION_KEY:-}
+      - EXATUY_ALLOW_DEFAULT_KEY=${EXATUY_ALLOW_DEFAULT_KEY:-false}
       - CATALINA_OPTS=-Dorg.apache.catalina.connector.Response.DEFAULT_CHARSET=UTF-8 -Dorg.apache.coyote.http11.DefaultCharset=UTF-8
     volumes:
       - ./uploads:/app/uploads:rw
