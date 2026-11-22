@@ -76,6 +76,11 @@
                 <i class="bi bi-credit-card-2-front"></i>Pembayaran Online
             </a>
         </li>
+        <li>
+            <a href="../BulkEmailServlet" <%= requestURI.contains("BulkEmailServlet") ? "class=\"active\"" : "" %>>
+                <i class="bi bi-envelope-paper"></i>Pengingat Email
+            </a>
+        </li>
         <li><hr class="sidebar-divider bg-white opacity-25 my-2"></li>
         <li class="sidebar-heading text-white-50 small">REPORTING</li>
         <li>
