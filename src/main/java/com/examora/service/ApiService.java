@@ -171,10 +171,26 @@ public class ApiService {
     public InformationBoard createInformation(String title, String content, String infoType,
                                               String priority, String targetAudience, Integer createdBy,
                                               java.time.LocalDateTime showUntil) throws ServiceException {
+        return createInformation(title, content, infoType, "Umum", priority, targetAudience, "ALL",
+                createdBy, showUntil);
+    }
+
+    /**
+     * Create new information/announcement dengan kategori & jenjang (P1 #17).
+     *
+     * @param category    Info Exam | Jadwal GMeet | Tagihan & Kuota | Umum
+     * @param targetGrade ALL | SD-1..SD-6 | SMP-7..SMP-9
+     */
+    public InformationBoard createInformation(String title, String content, String infoType,
+                                              String category, String priority, String targetAudience,
+                                              String targetGrade, Integer createdBy,
+                                              java.time.LocalDateTime showUntil) throws ServiceException {
         try {
             InformationBoard info = new InformationBoard(title, content, infoType, createdBy);
+            info.setCategory(normalizeCategory(category));
             info.setPriority(priority);
             info.setTargetAudience(targetAudience);
+            info.setTargetGrade(normalizeGrade(targetGrade));
             info.setShowUntil(showUntil);
 
             return informationBoardDAO.create(info);
@@ -184,14 +200,52 @@ public class ApiService {
     }
 
     /**
-     * Get active information for target audience
+     * Get active information for target audience (semua jenjang).
      */
     public List<InformationBoard> getActiveInformation(String targetAudience) throws ServiceException {
+        return getActiveInformation(targetAudience, null);
+    }
+
+    /**
+     * Get active information untuk audiens + jenjang siswa (P1 #17).
+     */
+    public List<InformationBoard> getActiveInformation(String targetAudience, String gradeLevel)
+            throws ServiceException {
         try {
-            return informationBoardDAO.findActiveForTarget(targetAudience);
+            if (gradeLevel == null || gradeLevel.isBlank()) {
+                return informationBoardDAO.findActiveForTarget(targetAudience);
+            }
+            return informationBoardDAO.findActiveForTargetAndGrade(targetAudience, gradeLevel);
         } catch (SQLException e) {
             throw new ServiceException("Gagal mengambil informasi: " + e.getMessage(), e);
         }
+    }
+
+    /** Validasi kategori agar hanya nilai resmi PRD yang tersimpan. */
+    public static String normalizeCategory(String category) {
+        if (category == null) {
+            return "Umum";
+        }
+        for (String allowed : InformationBoard.CATEGORIES) {
+            if (allowed.equalsIgnoreCase(category.trim())) {
+                return allowed;
+            }
+        }
+        return "Umum";
+    }
+
+    /** Validasi jenjang agar hanya nilai yang dikenal yang tersimpan. */
+    public static String normalizeGrade(String grade) {
+        if (grade == null || grade.isBlank()) {
+            return "ALL";
+        }
+        String value = grade.trim().toUpperCase();
+        for (String allowed : InformationBoard.GRADES) {
+            if (allowed.equals(value)) {
+                return allowed;
+            }
+        }
+        return "ALL";
     }
 
     /**
@@ -226,13 +280,27 @@ public class ApiService {
     public InformationBoard updateInformation(Integer id, String title, String content, String infoType,
                                               String priority, String targetAudience, Boolean isActive,
                                               java.time.LocalDateTime showUntil) throws ServiceException {
+        InformationBoard existing = getInformation(id);
+        return updateInformation(id, title, content, infoType, existing.getCategory(), priority,
+                targetAudience, existing.getTargetGrade(), isActive, showUntil);
+    }
+
+    /**
+     * Update information termasuk kategori & jenjang (P1 #17).
+     */
+    public InformationBoard updateInformation(Integer id, String title, String content, String infoType,
+                                              String category, String priority, String targetAudience,
+                                              String targetGrade, Boolean isActive,
+                                              java.time.LocalDateTime showUntil) throws ServiceException {
         try {
             InformationBoard info = getInformation(id);
             info.setTitle(title);
             info.setContent(content);
             info.setInfoType(infoType);
+            info.setCategory(normalizeCategory(category));
             info.setPriority(priority);
             info.setTargetAudience(targetAudience);
+            info.setTargetGrade(normalizeGrade(targetGrade));
             info.setIsActive(isActive);
             info.setShowUntil(showUntil);
 

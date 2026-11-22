@@ -108,6 +108,9 @@ Dukungan untuk berbagai jenjang: SD, SMP, SMA, dan pelatihan umum.
 | Export PDF | iText + html2pdf.js |
 | Build Tool | Maven |
 | Container | Docker & Docker Compose |
+| AI & DS Service | Python 3.11+ / FastAPI / scikit-learn |
+| Vector Database | FAISS (default) / ChromaDB |
+| LLM | Google Gemini API (`gemini-2.0-flash`) |
 
 ---
 
@@ -129,6 +132,127 @@ Akses: http://localhost:8888
 | Owner | owner@belajarku.id | Admin123! |
 | Pengajar | pengajar@belajarku.id | Guru123! |
 | Siswa Demo | siswa@belajarku.id | Siswa123! |
+
+---
+
+## AI & Data Science Service (FastAPI)
+
+Arsitektur **hybrid (Opsi A)**: aplikasi inti tetap Java JSP/Servlet + Tomcat 10,
+sedangkan seluruh kebutuhan Generative AI dan Data Science dilayani microservice
+Python terpisah di folder **`ai-service/`** melalui REST API.
+
+```bash
+cd ai-service
+python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+.venv/bin/python -m scripts.train_intent     # latih & bandingkan 3 model intent
+.venv/bin/python -m scripts.ds_pipeline      # dataset 50 siswa sintetis + LR vs RF
+.venv/bin/uvicorn app.main:app --port 8000   # Swagger: http://localhost:8000/docs
+
+# atau lewat Docker (profil opsional, stack utama tidak terpengaruh)
+docker compose --profile ai up -d ai-service
+```
+
+### Fitur & endpoint
+
+| Endpoint | Fungsi | Item |
+|---|---|---|
+| `POST /api/ai/chat` | Klasifikasi intent ≥ 4 kelas + routing + jawaban RAG | `#2` |
+| `POST /api/ai/explain` | Pembahasan soal salah dengan persona "Kakak Tutor Mentari" | `#1` |
+| `POST /api/ai/sentiment` | Sentimen ulasan siswa `positif`/`negatif` + agregasi | `#4` |
+| `POST /api/ai/webhook/messaging` | Webhook Telegram Bot / WhatsApp Cloud API | `#22` |
+| `GET /api/ds/analytics` | Topik tersulit + daftar siswa berisiko remedial | `#7` |
+| `GET /health`, `GET /api/v1/health` | Health-check model, RAG, Gemini, MySQL | `#21` |
+| `GET /docs` | OpenAPI/Swagger interaktif | `#31` |
+
+### Definisi masalah AI
+
+Siswa Bimbel Mentari belajar mandiri dan sering tidak paham **mengapa** jawabannya
+salah, sementara satu pengajar membimbing ±50 siswa. Tujuannya: memberi
+pembahasan instan yang kontekstual dengan Kurikulum Merdeka, menyaring pertanyaan
+di luar konteks belajar, menyalurkan pertanyaan non-akademik ke modul yang tepat,
+serta menandai siswa berisiko remedial sebelum evaluasi berikutnya.
+
+### Perbandingan model NLP (Macro F1, data evaluasi terpisah 60 baris)
+
+| Model | Macro F1 | Accuracy | Hyperparameter |
+|---|---|---|---|
+| TF-IDF word + Logistic Regression | 0.9314 | 0.9333 | `C=0.5`, n-gram (1,2) |
+| **TF-IDF word + Linear SVC** *(dipilih)* | **0.9492** | **0.9500** | `C=3.0`, n-gram (1,2) |
+| TF-IDF char_wb + Complement NB | 0.9119 | 0.9167 | `alpha=0.25` |
+
+**Class imbalance:** `class_weight='balanced'` pada model linear + `ComplementNB`
+sebagai pembanding; distribusi kelas dipantau pada laporan
+`ai-service/reports/intent_model_comparison.json`.
+**Hyperparameter tuning:** `GridSearchCV` (`scoring='f1_macro'`, 3-fold) hanya
+pada data latih; evaluasi memakai berkas terpisah.
+**Prediksi remedial (DS):** Random Forest unggul atas Logistic Regression
+(F1 0.825 vs 0.760; ROC-AUC 0.925 vs 0.852) dengan *feature engineering*
+meningkatkan F1 LR dari 0.760 → 0.779 dan ROC-AUC 0.852 → 0.870.
+
+### Data dummy & keterbatasan
+
+Seluruh dataset (intent, ulasan, profil 50 siswa) adalah **data sintetis** berlabel
+eksplisit `dummy_data = true`, dibangkitkan dengan simulasi statistik ber-seed
+(`numpy.default_rng(42)`) — **bukan data siswa asli** Bimbel Mentari, dan nama
+disimpan anonim (`Siswa 01`). Keterbatasan utama: ukuran sampel kecil (50 siswa,
+180 kalimat intent) sehingga interval kepercayaan lebar dan model rentan
+overfitting pada kelas minoritas; kalibrasi ulang wajib dilakukan saat data asli
+terkumpul. Kamus data lengkap ada di
+[`ai-service/README.md` §9](ai-service/README.md#9-data-dictionary).
+
+### Guardrails
+
+Dua lapis: leksikon 8 kategori out-of-context + deteksi prompt-injection, lalu
+lapis model intent dengan ambang keyakinan `0.35`. Pengujian otomatis menolak
+**14/14** prompt out-of-context dan 5/5 prompt-injection sambil memastikan 8
+pertanyaan sah tetap lolos (`ai-service/tests/test_guardrails.py`). Bila Gemini
+kena rate limit/timeout, sistem menyajikan pembahasan statis dari materi
+(`degraded_reason` terisi).
+
+Dokumentasi teknis lengkap, kontrak JSON, dan data dictionary: **`ai-service/README.md`**.
+
+---
+
+## Deployment Publik
+
+**URL produksi:** `https://exatuy.my.id` (Cloudflare → VPS ini; origin Tomcat di port `8888`).
+
+```bash
+cd Exatuy-main
+
+# 1) WAJIB: migrasi database (idempoten, aman diulang) sebelum demo
+for f in sql/add_quota_wallet.sql sql/add_student_pin.sql \
+         sql/migration_payment_cashin_quota.sql sql/reconcile_payment_settings.sql \
+         sql/add_announcement_category_grade.sql; do
+  docker exec -i examora-mysql sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" examora_db' < "$f"
+done
+
+# 2) build WAR terbaru lalu deploy
+docker run --rm -v "$PWD":/app -w /app -v /root/.m2:/root/.m2 \
+  maven:3.9-eclipse-temurin-11 mvn -B package -DskipTests
+cp target/examora.war examora.war
+docker compose up -d --build tomcat     # downtime ±10–20 detik
+
+# 3) AI & DS service (opsional, untuk fitur AI penuh)
+docker compose --profile ai up -d --build ai-service
+# Swagger: http://<host>:8090/docs  (di VPS ini 8000/8001/8002 sudah terpakai)
+```
+
+Verifikasi setelah deploy:
+
+```bash
+curl -s https://exatuy.my.id/health | python3 -m json.tool   # status, DB, scheduler, AI
+curl -s -o /dev/null -w '%{http_code}\n' https://exatuy.my.id/common/login.jsp
+```
+
+Catatan operasional:
+
+* `examora.war` di root repo **harus** lebih baru dari commit terakhir — WAR lama
+  membuat fitur baru (kuota, PIN, GMeet, kategori pengumuman, navbar baru) tidak muncul.
+* `.env` (rahasia DB Sumopod/DSB.) tidak pernah di-commit; gunakan `.env.example`
+  sebagai acuan.
+* Health-check memantau DB, scheduler reset kuota, dan keterjangkauan AI service;
+  `ai_service.reachable: false` **bukan** kegagalan aplikasi (fitur AI bersifat opsional).
 
 ---
 

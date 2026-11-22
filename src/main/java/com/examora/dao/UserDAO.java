@@ -386,11 +386,31 @@ public class UserDAO {
     public int removeTagFromAll(String tag) throws SQLException {
         String sql = "UPDATE users SET tag = NULL WHERE tag = ?";
 
+        int total = 0;
         try (Connection conn = DBUtil.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
 
             stmt.setString(1, tag);
+            total = stmt.executeUpdate();
+        }
+        // Bersihkan referensi target_tag di fitur lain agar tidak menggantung.
+        total += clearTargetTag("quiz", "target_tag", tag);
+        total += clearTargetTag("attendance_sessions", "target_tag", tag);
+        total += clearTargetTag("meet_links", "target_tag", tag);
+        total += clearTargetTag("custom_pages", "target_tag", tag);
+        return total;
+    }
+
+    /** Set kolom target_tag menjadi NULL untuk satu nilai tag (aman bila tabel tak ada). */
+    private int clearTargetTag(String table, String column, String tag) {
+        String sql = "UPDATE " + table + " SET " + column + " = NULL WHERE " + column + " = ?";
+        try (Connection conn = DBUtil.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, tag);
             return stmt.executeUpdate();
+        } catch (SQLException e) {
+            System.err.println("removeTagFromAll: lewati " + table + "." + column + " -> " + e.getMessage());
+            return 0;
         }
     }
 

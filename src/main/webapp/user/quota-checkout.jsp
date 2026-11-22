@@ -68,24 +68,7 @@
 </head>
 <body>
     <!-- Navbar -->
-    <nav class="navbar navbar-expand-md navbar-dark bg-primary">
-        <div class="container">
-            <a class="navbar-brand fw-bold" href="<%= request.getContextPath() %>/ExamServlet?action=dashboard">
-                <i class="bi bi-journal-check me-2"></i>Exatuy
-            </a>
-            <div class="d-flex align-items-center gap-2 ms-auto">
-                <% if (currentUser.isAdmin()) { %>
-                <a href="<%= request.getContextPath() %>/PaymentSettingsServlet" class="btn btn-light btn-sm">
-                    <i class="bi bi-arrow-left me-1"></i>Kembali ke Pengaturan Admin
-                </a>
-                <% } else { %>
-                <a href="<%= request.getContextPath() %>/ExamServlet?action=dashboard" class="btn btn-light btn-sm">
-                    <i class="bi bi-arrow-left me-1"></i>Kembali ke Dashboard
-                </a>
-                <% } %>
-            </div>
-        </div>
-    </nav>
+    <%@ include file="navbar.jspf" %>
 
     <div class="container py-4">
         <% if (success != null) { %>
@@ -140,7 +123,7 @@
             <div>
                 <h6 class="fw-bold mb-1">Sistem Pembayaran Sedang dalam Konfigurasi Pengajar</h6>
                 <p class="mb-0 small">
-                    Pengajar belum mengaktifkan kunci pembayaran Sumopod. Silakan hubungi pengajar Bimbel Mentari untuk informasi pengisian kuota belajar.
+                    Pengajar belum mengaktifkan kunci pembayaran online. Silakan hubungi pengajar Bimbel Mentari untuk informasi pengisian kuota belajar.
                 </p>
             </div>
         </div>
@@ -217,7 +200,7 @@
                         </div>
                         <div class="card-body d-flex flex-column">
                             <div class="mb-3">
-                                <label class="form-label fw-bold small">Metode Pembayaran (Sumopod)</label>
+                                <label class="form-label fw-bold small">Metode Pembayaran</label>
                                 <div class="form-check mb-2">
                                     <input class="form-check-input" type="radio" name="paymentMethod" id="methodQris" value="QRIS" checked>
                                     <label class="form-check-label fw-semibold" for="methodQris">
@@ -250,7 +233,7 @@
 
                             <div class="mt-auto">
                                 <button type="submit" class="btn btn-primary w-100 py-2">
-                                    <i class="bi bi-shield-check me-2"></i>Bayar via Sumopod (<%= setting.isLiveMode() ? "Live" : "Sandbox" %>)
+                                    <i class="bi bi-shield-check me-2"></i>Bayar Online (<%= setting.isLiveMode() ? "Live" : "Sandbox" %>)
                                 </button>
                             </div>
                         </div>

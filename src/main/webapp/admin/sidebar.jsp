@@ -50,8 +50,8 @@
             </a>
         </li>
         <li>
-            <a href="../BillingServlet?action=packages" <%= requestURI.contains("BillingServlet") && queryString != null && queryString.contains("packages") ? "class=\"active\"" : "" %>>
-                <i class="bi bi-box-seam"></i>Paket Kuota
+            <a href="../MeetLinkServlet" <%= requestURI.contains("MeetLinkServlet") ? "class=\"active\"" : "" %>>
+                <i class="bi bi-camera-video"></i>Link Google Meet
             </a>
         </li>
         <li>
@@ -73,7 +73,7 @@
         </li>
         <li>
             <a href="../PaymentSettingsServlet" <%= requestURI.contains("PaymentSettingsServlet") ? "class=\"active\"" : "" %>>
-                <i class="bi bi-credit-card-2-front"></i>Pembayaran Sumopod
+                <i class="bi bi-credit-card-2-front"></i>Pembayaran Online
             </a>
         </li>
         <li><hr class="sidebar-divider bg-white opacity-25 my-2"></li>

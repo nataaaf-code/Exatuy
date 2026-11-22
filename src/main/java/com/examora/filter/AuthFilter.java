@@ -17,6 +17,8 @@ public class AuthFilter implements Filter {
 
     private static final String[] PUBLIC_PATHS = {
             "/", "/index.jsp", "/login", "/register", "/LoginServlet", "/RegisterServlet",
+            // Health-check untuk uptime monitor (PRD #21) — tanpa data sensitif.
+            "/health", "/api/v1/health",
             "/assets/", "/css/", "/js/", "/images/"
     };
 

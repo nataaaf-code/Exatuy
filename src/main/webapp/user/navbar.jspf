@@ -1,0 +1,256 @@
+<%--
+  navbar.jspf — Navbar TUNGGAL untuk seluruh halaman siswa (user/*.jsp).
+
+  Masalah yang diperbaiki:
+    Setiap halaman dulu menulis <nav> sendiri, sehingga menu berbeda-beda
+    antar halaman (Transcript hilang di sebagian halaman, Logout hilang di
+    halaman Materi, Leaderboard/Chat hanya muncul di beberapa halaman).
+    Dengan satu fragmen ini, menu dijamin identik di semua halaman.
+
+  Aturan teknis:
+    - Semua nama variabel diberi prefiks _nav agar tidak bentrok dengan
+      variabel yang sudah dideklarasikan halaman pemanggil (static include
+      menggabungkan source ke satu method _jspService).
+    - Semua nama kelas ditulis lengkap (com.examora...) supaya halaman
+      pemanggil tidak wajib mengimpor apa pun.
+    - Semua tautan memakai request.getContextPath() sehingga tetap benar
+      baik halaman dibuka lewat servlet (/ExamServlet) maupun JSP (/user/x.jsp).
+--%>
+<% {
+    com.examora.model.User _navUser =
+            (com.examora.model.User) session.getAttribute("user");
+
+    boolean _navChat = false;
+    boolean _navFiles = false;
+    boolean _navLeaderboard = false;
+    int _navUnread = 0;
+    int _navQuota = 0;
+
+    if (_navUser != null) {
+        _navQuota = _navUser.getQuotaBalance();
+        try {
+            com.examora.dao.SettingsDAO _navSettings = new com.examora.dao.SettingsDAO();
+            _navChat = _navSettings.isChatEnabled();
+            _navFiles = _navSettings.isFileManagementEnabled();
+            _navLeaderboard = _navSettings.isLeaderboardPublished();
+        } catch (Exception _navIgnored) {
+            // Konfigurasi tidak tersedia -> menu opsional disembunyikan.
+        }
+        if (_navChat) {
+            try {
+                _navUnread = new com.examora.service.ChatService()
+                        .getUnreadCountForUser(_navUser.getId());
+            } catch (Exception _navIgnored) {
+                _navUnread = 0;
+            }
+        }
+    }
+
+    String _navLink = _navUser != null && _navUser.getGdriveLink() != null
+            ? _navUser.getGdriveLink().trim() : "";
+    boolean _navHasMeet = _navLink.startsWith("https://meet.google.com/")
+            || _navLink.startsWith("https://drive.google.com/")
+            || _navLink.startsWith("https://docs.google.com/");
+    boolean _navIsMeet = _navLink.startsWith("https://meet.google.com/");
+
+    // Menu juga muncul bila pengajar sudah membuat tautan di menu "Link Google Meet"
+    // (tabel meet_links), tanpa bergantung pada kolom gdrive_link lama.
+    if (!_navHasMeet && _navUser != null) {
+        try {
+            com.examora.dao.MeetLinkDAO.MeetLink _navMeet = new com.examora.dao.MeetLinkDAO()
+                    .findForStudent(_navUser.getTag(), _navUser.getGradeLevel());
+            if (_navMeet != null && _navMeet.url != null && !_navMeet.url.isBlank()) {
+                _navHasMeet = true;
+                _navIsMeet = true;
+            }
+        } catch (Exception _navIgnored) {
+            // tabel belum ada / query gagal -> sembunyikan menu
+        }
+    }
+    int _navMaxQuota = com.examora.service.QuotaService.MAX_QUOTA;
+    String _navQuotaClass = _navQuota == 0
+            ? "bg-danger text-white"
+            : (_navQuota <= 3 ? "bg-warning text-dark" : "bg-success text-white");
+
+    String _navCtx = request.getContextPath();
+    String _navUri = request.getRequestURI();
+    String _navQ = request.getQueryString() != null ? request.getQueryString() : "";
+
+    // Penanda menu aktif: dua baris memakai /ExamServlet, jadi dibedakan lewat query.
+    boolean _navOnExam = _navUri.contains("/ExamServlet");
+    boolean _navAQuiz = _navOnExam && _navQ.contains("action=list");
+    boolean _navAHistory = _navOnExam && _navQ.contains("action=history");
+    boolean _navADashboard = _navOnExam && !_navAQuiz && !_navAHistory;
+
+    String[][] _navMenu = {
+            {_navCtx + "/ExamServlet?action=dashboard", "Dashboard", "bi-speedometer2", _navADashboard ? "1" : "0"},
+            {_navCtx + "/ExamServlet?action=list", "Quiz Tersedia", "bi-pencil-square", _navAQuiz ? "1" : "0"},
+            {_navCtx + "/MateriServlet", "Materi", "bi-book", _navUri.contains("/MateriServlet") ? "1" : "0"},
+            {_navCtx + "/AttendanceServlet?action=view", "Absensi", "bi-check2-square", _navUri.contains("/AttendanceServlet") ? "1" : "0"},
+            {_navCtx + "/ExamServlet?action=history", "Riwayat", "bi-clock-history", _navAHistory ? "1" : "0"},
+            {_navCtx + "/TranscriptServlet?action=mine", "Transcript Nilai", "bi-card-list", _navUri.contains("/TranscriptServlet") ? "1" : "0"},
+            {_navCtx + "/AchievementServlet?action=myAchievements", "Achievements", "bi-award", _navUri.contains("/AchievementServlet") ? "1" : "0"}
+    };
+%>
+<% if (_navUser != null) { %>
+<nav class="navbar navbar-expand-md navbar-dark bg-primary sticky-top">
+    <div class="container">
+        <a class="navbar-brand" href="<%= _navCtx %>/ExamServlet?action=dashboard">
+            <i class="bi bi-mortarboard-fill me-2"></i>Exatuy
+        </a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#studentNavbar"
+                aria-controls="studentNavbar" aria-expanded="false" aria-label="Buka menu">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="studentNavbar">
+            <ul class="navbar-nav me-auto">
+                <% for (String[] _navItem : _navMenu) {
+                       boolean _navIsActive = "1".equals(_navItem[3]);
+                %>
+                <li class="nav-item">
+                    <a class="nav-link <%= _navIsActive ? "active fw-semibold" : "" %>" href="<%= _navItem[0] %>">
+                        <i class="bi <%= _navItem[2] %> me-1"></i><%= _navItem[1] %>
+                    </a>
+                </li>
+                <% } %>
+
+                <% if (_navFiles) { %>
+                <li class="nav-item">
+                    <a class="nav-link" href="<%= _navCtx %>/user/files.jsp"><i class="bi bi-folder me-1"></i>Files</a>
+                </li>
+                <% } %>
+
+                <% if (_navLeaderboard) { %>
+                <li class="nav-item">
+                    <a class="nav-link" href="<%= _navCtx %>/LeaderboardServlet"><i class="bi bi-trophy me-1"></i>Leaderboard</a>
+                </li>
+                <% } %>
+
+                <% if (_navChat) { %>
+                <li class="nav-item">
+                    <a class="nav-link" href="<%= _navCtx %>/ChatServlet">
+                        <i class="bi bi-chat-dots me-1"></i>Chat
+                        <% if (_navUnread > 0) { %><span class="badge bg-danger"><%= _navUnread %></span><% } %>
+                    </a>
+                </li>
+                <% } %>
+
+                <% if (_navHasMeet) { %>
+                <li class="nav-item">
+                    <a class="nav-link" href="<%= _navCtx %>/GMeetServlet"
+                       title="Halaman sesi Google Meet: tautan ditampilkan sebelum membuka">
+                        <i class="bi bi-<%= _navIsMeet ? "camera-video" : "google" %> me-1"></i><%= _navIsMeet ? "Google Meet" : "Google Drive" %>
+                    </a>
+                </li>
+                <% } %>
+
+                <%@ include file="custom-menu-items.jspf" %>
+            </ul>
+
+            <%-- Mobile: badge kuota, profil, logout di dalam daftar menu --%>
+            <ul class="navbar-nav d-md-none">
+                <li class="nav-item"><hr class="my-2 border-light"></li>
+                <li class="nav-item mb-2">
+                    <a href="<%= _navCtx %>/PaymentSettingsServlet?action=checkout"
+                       class="quota-header-pill d-flex align-items-center justify-content-between text-decoration-none px-3 py-2 rounded">
+                        <span><i class="bi bi-coin me-1"></i><strong><%= _navQuota %> / <%= _navMaxQuota %> Poin</strong></span>
+                        <small class="opacity-75"><i class="bi bi-clock me-1"></i><span class="quota-reset-countdown">--</span></small>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="<%= _navCtx %>/ProfileServlet"><i class="bi bi-person me-2"></i>Profil Saya</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="<%= _navCtx %>/LogoutServlet"><i class="bi bi-box-arrow-left me-2"></i>Logout</a>
+                </li>
+            </ul>
+
+            <%-- Desktop: pill kuota + dropdown profil --%>
+            <div class="d-none d-md-flex align-items-center gap-3">
+                <a href="<%= _navCtx %>/PaymentSettingsServlet?action=checkout"
+                   class="quota-header-pill d-flex align-items-center gap-2 text-decoration-none px-3 py-1 rounded-pill"
+                   title="Saldo kuota aktif (maks. 12 poin) & reset tiap tanggal 1 pukul 00:00 WIB.">
+                    <span class="badge <%= _navQuotaClass %> rounded-pill px-2 py-1">
+                        <i class="bi bi-coin me-1"></i><%= _navQuota %> / <%= _navMaxQuota %> Poin
+                    </span>
+                    <small class="text-white d-none d-lg-inline" style="font-size:0.75rem; white-space:nowrap;">
+                        <i class="bi bi-arrow-clockwise me-1"></i>Reset: <span class="quota-reset-countdown">--</span>
+                    </small>
+                </a>
+                <div class="dropdown">
+                    <a href="#" class="d-flex align-items-center text-white text-decoration-none dropdown-toggle"
+                       data-bs-toggle="dropdown">
+                        <i class="bi bi-person-circle me-1 fs-5"></i>
+                        <span><%= com.examora.util.ValidationUtil.sanitizeHtml(_navUser.getName()) %></span>
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li><a class="dropdown-item" href="<%= _navCtx %>/PaymentSettingsServlet?action=checkout">
+                            <i class="bi bi-wallet2 me-2"></i>Dompet Kuota (<%= _navQuota %>/<%= _navMaxQuota %>)</a></li>
+                        <li><a class="dropdown-item" href="<%= _navCtx %>/ProfileServlet"><i class="bi bi-person me-2"></i>Profil Saya</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="<%= _navCtx %>/LogoutServlet"><i class="bi bi-box-arrow-left me-2"></i>Logout</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</nav>
+<% if (_navHasMeet) { %>
+<!-- Konfirmasi akses Google Meet/Drive: memotong 1 poin kuota (P1 #14).
+     Modal ini ikut fragmen navbar sehingga tersedia di SEMUA halaman siswa. -->
+<div class="modal fade" id="navGmeetModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header bg-primary text-white border-0">
+                <h5 class="modal-title"><i class="bi bi-camera-video me-2"></i>
+                    Buka <%= _navIsMeet ? "Google Meet" : "Google Drive" %></h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Tutup"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-3">Tautan ini adalah sesi belajar Anda. Membukanya memotong
+                    <strong>1 poin kuota</strong> yang tercatat di riwayat kuota.</p>
+                <div class="alert <%= _navQuota >= 1 ? "alert-success" : "alert-warning" %> mb-0">
+                    <i class="bi bi-wallet2 me-1"></i>
+                    Saldo poin: <strong><%= _navQuota %> / <%= _navMaxQuota %></strong>
+                    <% if (_navQuota < 1) { %>
+                    — poin habis, silakan
+                    <a href="<%= _navCtx %>/PaymentSettingsServlet?action=checkout" class="alert-link">beli paket kuota</a>
+                    dulu.
+                    <% } %>
+                </div>
+            </div>
+            <div class="modal-footer border-0 bg-light">
+                <button type="button" class="btn btn-outline-secondary px-4" data-bs-dismiss="modal">Batal</button>
+                <form method="post" action="<%= _navCtx %>/GMeetServlet" class="m-0">
+                    <input type="hidden" name="csrfToken" value="<%= session.getAttribute("csrfToken") %>">
+                    <button type="submit" class="btn btn-primary px-4" <%= _navQuota < 1 ? "disabled" : "" %>>
+                        <i class="bi bi-box-arrow-up-right me-1"></i>Buka (1 Poin)
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+<% } %>
+<script>
+    // Hitung mundur reset kuota (tanggal 1 pukul 00:00 WIB) untuk semua halaman.
+    (function () {
+        var targets = document.querySelectorAll('.quota-reset-countdown');
+        if (!targets.length) { return; }
+        function tick() {
+            var now = new Date();
+            var wib = new Date(now.getTime() + (7 * 60 + now.getTimezoneOffset()) * 60000);
+            var next = new Date(wib.getFullYear(), wib.getMonth() + 1, 1, 0, 0, 0);
+            var diff = next - wib;
+            var days = Math.floor(diff / 86400000);
+            var hours = Math.floor(diff % 86400000 / 3600000);
+            var minutes = Math.floor(diff % 3600000 / 60000);
+            var label = days + 'h ' + hours + 'j ' + minutes + 'm';
+            targets.forEach(function (el) { el.textContent = label; });
+        }
+        tick();
+        setInterval(tick, 60000);
+    })();
+</script>
+<% } %>
+<% } %>

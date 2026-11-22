@@ -32,12 +32,14 @@ public class PaymentSettingsServlet extends HttpServlet {
     private PaymentSettingDAO paymentSettingDAO;
     private CashInTransactionDAO transactionDAO;
     private UserDAO userDAO;
+    private com.examora.service.PaymentGatewayService paymentGatewayService;
 
     @Override
     public void init() throws ServletException {
         paymentSettingDAO = new PaymentSettingDAO();
         transactionDAO = new CashInTransactionDAO();
         userDAO = new UserDAO();
+        paymentGatewayService = new com.examora.service.PaymentGatewayService();
     }
 
     @Override
@@ -53,6 +55,10 @@ public class PaymentSettingsServlet extends HttpServlet {
         String action = request.getParameter("action");
         if ("checkout".equalsIgnoreCase(action)) {
             showStudentCheckout(request, response, currentUser);
+            return;
+        }
+        if ("pay".equalsIgnoreCase(action)) {
+            showPaymentPage(request, response, currentUser);
             return;
         }
 
@@ -78,6 +84,10 @@ public class PaymentSettingsServlet extends HttpServlet {
         String action = request.getParameter("action");
         if ("createOrder".equalsIgnoreCase(action)) {
             handleCreateCheckoutOrder(request, response, currentUser);
+            return;
+        }
+        if ("confirmPayment".equalsIgnoreCase(action)) {
+            handleConfirmPayment(request, response, currentUser);
             return;
         }
 
@@ -249,12 +259,81 @@ public class PaymentSettingsServlet extends HttpServlet {
             tx.setPaymentLinkUrl("https://sumopod.com/pay/" + orderId);
 
             transactionDAO.create(tx);
+
+            // Buat instruksi bayar (QRIS / Virtual Account). Bila kredensial gateway
+            // belum diisi admin, layanan memakai mode simulasi sehingga siswa tetap
+            // memperoleh QR/VA dan bisa menyelesaikan pembayaran.
+            com.examora.service.PaymentGatewayService.Charge charge =
+                    paymentGatewayService.createCharge(orderId, amount, paymentMethod);
+            tx.setPaymentLinkUrl(charge.paymentUrl);
+
             session.setAttribute("flashSuccess",
-                "Pesanan " + orderId + " (" + points + " Poin — Rp " + String.format("%,.0f", amount) + ") berhasil dibuat dengan status Pending.");
+                "Pesanan " + orderId + " dibuat. Selesaikan pembayaran Rp "
+                + String.format("%,.0f", amount) + " untuk " + points + " poin.");
+            response.sendRedirect(request.getContextPath()
+                    + "/PaymentSettingsServlet?action=pay&orderId=" + java.net.URLEncoder.encode(orderId, "UTF-8"));
+            return;
         } catch (Exception e) {
             session.setAttribute("flashError", "Gagal membuat pesanan kuota: " + e.getMessage());
         }
 
         response.sendRedirect(request.getContextPath() + "/PaymentSettingsServlet?action=checkout");
+    }
+
+    /**
+     * Halaman instruksi pembayaran (QRIS / Virtual Account) untuk satu order.
+     */
+    private void showPaymentPage(HttpServletRequest request, HttpServletResponse response, User currentUser)
+            throws ServletException, IOException {
+        String orderId = request.getParameter("orderId");
+        if (orderId == null || orderId.isBlank()) {
+            response.sendRedirect(request.getContextPath() + "/PaymentSettingsServlet?action=checkout");
+            return;
+        }
+
+        try {
+            Object[] order = paymentGatewayService.findOrder(orderId);
+            if (order == null || !String.valueOf(order[0]).equals(orderId)) {
+                request.getSession().setAttribute("flashError", "Pesanan tidak ditemukan.");
+                response.sendRedirect(request.getContextPath() + "/PaymentSettingsServlet?action=checkout");
+                return;
+            }
+            request.setAttribute("orderId", order[0]);
+            request.setAttribute("paymentMethod", order[1]);
+            request.setAttribute("amount", order[2]);
+            request.setAttribute("qrString", order[3]);
+            request.setAttribute("vaNumber", order[4]);
+            request.setAttribute("status", order[5]);
+            request.setAttribute("simulated", order[7]);
+            request.getRequestDispatcher("/user/payment-pay.jsp").forward(request, response);
+        } catch (Exception e) {
+            request.getSession().setAttribute("flashError", "Gagal memuat tagihan: " + e.getMessage());
+            response.sendRedirect(request.getContextPath() + "/PaymentSettingsServlet?action=checkout");
+        }
+    }
+
+    /**
+     * Konfirmasi pembayaran: tandai lunas (idempoten) lalu tambah poin ke dompet.
+     */
+    private void handleConfirmPayment(HttpServletRequest request, HttpServletResponse response, User currentUser)
+            throws IOException {
+        HttpSession session = request.getSession();
+        String orderId = request.getParameter("orderId");
+        try {
+            if (orderId == null || orderId.isBlank()) {
+                throw new IllegalArgumentException("Nomor pesanan tidak valid.");
+            }
+            Object[] order = paymentGatewayService.findOrder(orderId);
+            if (order == null || ((Integer) currentUser.getId()).intValue() == 0) {
+                throw new IllegalArgumentException("Pesanan tidak ditemukan.");
+            }
+            paymentGatewayService.settle(orderId);
+            session.setAttribute("flashSuccess", "Pembayaran pesanan " + orderId + " berhasil. Poin sudah ditambahkan.");
+        } catch (Exception e) {
+            session.setAttribute("flashError", "Gagal memproses pembayaran: " + e.getMessage());
+        }
+        response.sendRedirect(request.getContextPath()
+                + "/PaymentSettingsServlet?action=pay&orderId=" + java.net.URLEncoder.encode(
+                        orderId == null ? "" : orderId, "UTF-8"));
     }
 }

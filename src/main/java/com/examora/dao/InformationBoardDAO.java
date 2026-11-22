@@ -13,15 +13,16 @@ import java.util.List;
 public class InformationBoardDAO {
 
     private static final String COLUMNS = "ib.id, ib.title, ib.content, ib.info_type, " +
-            "ib.priority, ib.target_audience, ib.is_active, ib.show_until, ib.created_by, " +
-            "ib.created_at, ib.updated_at, u.name as creator_name";
+            "ib.category, ib.priority, ib.target_audience, ib.target_grade, ib.is_active, " +
+            "ib.show_until, ib.created_by, ib.created_at, ib.updated_at, u.name as creator_name";
 
     /**
      * Create new information
      */
     public InformationBoard create(InformationBoard info) throws SQLException {
-        String sql = "INSERT INTO information_board (title, content, info_type, priority, " +
-                "target_audience, is_active, show_until, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+        String sql = "INSERT INTO information_board (title, content, info_type, category, priority, " +
+                "target_audience, target_grade, is_active, show_until, created_by) " +
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
         try (Connection conn = DBUtil.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
@@ -29,15 +30,17 @@ public class InformationBoardDAO {
             stmt.setString(1, info.getTitle());
             stmt.setString(2, info.getContent());
             stmt.setString(3, info.getInfoType());
-            stmt.setString(4, info.getPriority());
-            stmt.setString(5, info.getTargetAudience());
-            stmt.setBoolean(6, info.getIsActive() != null ? info.getIsActive() : true);
+            stmt.setString(4, info.getCategory());
+            stmt.setString(5, info.getPriority());
+            stmt.setString(6, info.getTargetAudience());
+            stmt.setString(7, info.getTargetGrade());
+            stmt.setBoolean(8, info.getIsActive() != null ? info.getIsActive() : true);
             if (info.getShowUntil() != null) {
-                stmt.setTimestamp(7, Timestamp.valueOf(info.getShowUntil()));
+                stmt.setTimestamp(9, Timestamp.valueOf(info.getShowUntil()));
             } else {
-                stmt.setNull(7, Types.TIMESTAMP);
+                stmt.setNull(9, Types.TIMESTAMP);
             }
-            stmt.setInt(8, info.getCreatedBy());
+            stmt.setInt(10, info.getCreatedBy());
 
             int affectedRows = stmt.executeUpdate();
             if (affectedRows == 0) {
@@ -123,7 +126,8 @@ public class InformationBoardDAO {
      */
     public boolean update(InformationBoard info) throws SQLException {
         String sql = "UPDATE information_board SET title = ?, content = ?, info_type = ?, " +
-                "priority = ?, target_audience = ?, is_active = ?, show_until = ? WHERE id = ?";
+                "category = ?, priority = ?, target_audience = ?, target_grade = ?, is_active = ?, " +
+                "show_until = ? WHERE id = ?";
 
         try (Connection conn = DBUtil.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -131,18 +135,53 @@ public class InformationBoardDAO {
             stmt.setString(1, info.getTitle());
             stmt.setString(2, info.getContent());
             stmt.setString(3, info.getInfoType());
-            stmt.setString(4, info.getPriority());
-            stmt.setString(5, info.getTargetAudience());
-            stmt.setBoolean(6, info.getIsActive());
+            stmt.setString(4, info.getCategory());
+            stmt.setString(5, info.getPriority());
+            stmt.setString(6, info.getTargetAudience());
+            stmt.setString(7, info.getTargetGrade());
+            stmt.setBoolean(8, info.getIsActive());
             if (info.getShowUntil() != null) {
-                stmt.setTimestamp(7, Timestamp.valueOf(info.getShowUntil()));
+                stmt.setTimestamp(9, Timestamp.valueOf(info.getShowUntil()));
             } else {
-                stmt.setNull(7, Types.TIMESTAMP);
+                stmt.setNull(9, Types.TIMESTAMP);
             }
-            stmt.setInt(8, info.getId());
+            stmt.setInt(10, info.getId());
 
             return stmt.executeUpdate() > 0;
         }
+    }
+
+    /**
+     * P1 #17 — pengumuman aktif untuk audiens + jenjang tertentu.
+     *
+     * `target_grade` kosong/NULL atau 'ALL' berarti berlaku untuk semua jenjang,
+     * sehingga siswa hanya melihat pengumuman yang relevan dengan kelasnya.
+     */
+    public List<InformationBoard> findActiveForTargetAndGrade(String targetAudience, String gradeLevel)
+            throws SQLException {
+        String sql = "SELECT " + COLUMNS + " FROM information_board ib " +
+                "LEFT JOIN users u ON ib.created_by = u.id WHERE ib.is_active = 1 " +
+                "AND (ib.target_audience = 'all' OR ib.target_audience = ?) " +
+                "AND (ib.target_grade IS NULL OR ib.target_grade = '' OR UPPER(ib.target_grade) = 'ALL' " +
+                "     OR UPPER(ib.target_grade) = UPPER(COALESCE(?, ''))) " +
+                "AND (ib.show_until IS NULL OR ib.show_until > NOW()) " +
+                "ORDER BY FIELD(ib.category, 'Info Exam', 'Jadwal GMeet', 'Tagihan & Kuota', 'Umum'), " +
+                "ib.priority DESC, ib.created_at DESC";
+
+        List<InformationBoard> infos = new ArrayList<>();
+
+        try (Connection conn = DBUtil.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+            stmt.setString(1, targetAudience);
+            stmt.setString(2, gradeLevel != null ? gradeLevel : "");
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    infos.add(mapResultSetToInformationBoard(rs));
+                }
+            }
+        }
+        return infos;
     }
 
     /**
@@ -179,8 +218,10 @@ public class InformationBoardDAO {
         info.setTitle(rs.getString("title"));
         info.setContent(rs.getString("content"));
         info.setInfoType(rs.getString("info_type"));
+        info.setCategory(rs.getString("category"));
         info.setPriority(rs.getString("priority"));
         info.setTargetAudience(rs.getString("target_audience"));
+        info.setTargetGrade(rs.getString("target_grade"));
         info.setIsActive(rs.getBoolean("is_active"));
         info.setCreatorName(rs.getString("creator_name"));
 

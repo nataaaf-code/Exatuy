@@ -1437,8 +1437,10 @@ public class AdminServlet extends HttpServlet {
             String title = request.getParameter("title");
             String content = request.getParameter("content");
             String infoType = request.getParameter("infoType");
+            String category = request.getParameter("category");
             String priority = request.getParameter("priority");
             String targetAudience = request.getParameter("targetAudience");
+            String targetGrade = request.getParameter("targetGrade");
             String showUntilStr = request.getParameter("showUntil");
 
             java.time.LocalDateTime showUntil = null;
@@ -1446,8 +1448,8 @@ public class AdminServlet extends HttpServlet {
                 showUntil = java.time.LocalDateTime.parse(showUntilStr);
             }
 
-            apiService.createInformation(title, content, infoType, priority, targetAudience,
-                    currentUser.getId(), showUntil);
+            apiService.createInformation(title, content, infoType, category, priority, targetAudience,
+                    targetGrade, currentUser.getId(), showUntil);
 
             request.setAttribute("success", "Informasi '" + title + "' berhasil dibuat!");
             showInformationBoard(request, response);
@@ -1467,8 +1469,10 @@ public class AdminServlet extends HttpServlet {
             String title = request.getParameter("title");
             String content = request.getParameter("content");
             String infoType = request.getParameter("infoType");
+            String category = request.getParameter("category");
             String priority = request.getParameter("priority");
             String targetAudience = request.getParameter("targetAudience");
+            String targetGrade = request.getParameter("targetGrade");
             String isActiveStr = request.getParameter("isActive");
             String showUntilStr = request.getParameter("showUntil");
 
@@ -1479,8 +1483,8 @@ public class AdminServlet extends HttpServlet {
                 showUntil = java.time.LocalDateTime.parse(showUntilStr);
             }
 
-            apiService.updateInformation(id, title, content, infoType, priority, targetAudience,
-                    isActive, showUntil);
+            apiService.updateInformation(id, title, content, infoType, category, priority,
+                    targetAudience, targetGrade, isActive, showUntil);
 
             request.setAttribute("success", "Informasi berhasil diupdate!");
             showInformationBoard(request, response);
@@ -1544,6 +1548,8 @@ public class AdminServlet extends HttpServlet {
             jsonObject.addProperty("typeBadge", info.getTypeBadge());
             jsonObject.addProperty("priority", info.getPriority());
             jsonObject.addProperty("priorityBadgeBg", info.getPriorityBadgeBg());
+            jsonObject.addProperty("category", info.getCategory());
+            jsonObject.addProperty("targetGrade", info.getTargetGrade());
             jsonObject.addProperty("targetAudience", info.getTargetAudience());
             jsonObject.addProperty("targetAudienceDisplay", info.getTargetAudienceDisplay());
             jsonObject.addProperty("isActive", info.getIsActive());

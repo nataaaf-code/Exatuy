@@ -19,6 +19,18 @@ public class AttendanceSchedulerListener implements ServletContextListener {
     private static final Logger LOGGER = Logger.getLogger(AttendanceSchedulerListener.class.getName());
     private ScheduledExecutorService scheduler;
 
+    /** Waktu tick terakhir — dipakai HealthServlet (#21) untuk memantau penjadwal. */
+    private static volatile java.time.Instant lastRunAt;
+    private static volatile boolean started;
+
+    public static java.time.Instant getLastRunAt() {
+        return lastRunAt;
+    }
+
+    public static boolean isStarted() {
+        return started;
+    }
+
     @Override
     public void contextInitialized(ServletContextEvent sce) {
         scheduler = Executors.newSingleThreadScheduledExecutor();
@@ -53,8 +65,11 @@ public class AttendanceSchedulerListener implements ServletContextListener {
             } catch (Exception e) {
                 LOGGER.log(Level.WARNING, "Monthly quota reset failed", e);
             }
+
+            lastRunAt = java.time.Instant.now();
         }, 0, 1, TimeUnit.MINUTES);
 
+        started = true;
         LOGGER.info("AttendanceSchedulerListener started — checking every 1 minute");
     }
 

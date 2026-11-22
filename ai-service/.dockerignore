@@ -1,0 +1,10 @@
+# Konteks build minimal: jangan kirim venv & artefak besar ke daemon Docker.
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.pyright/
+.env
+.env.*
+models/chroma/
+models/*.faiss

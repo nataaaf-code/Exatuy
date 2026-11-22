@@ -26,9 +26,16 @@
     List<InformationBoard> informationBoards = (List<InformationBoard>) request.getAttribute("informationBoards");
     List<CustomPage> customPages = (List<CustomPage>) request.getAttribute("customPages");
     String success = (String) request.getAttribute("success");
+    String flashSuccess = (String) session.getAttribute("flashSuccess");
+    if (flashSuccess != null) { session.removeAttribute("flashSuccess"); success = flashSuccess; }
     String error = (String) request.getAttribute("error");
     String gdriveLink = currentUser.getGdriveLink() != null ? currentUser.getGdriveLink().trim() : "";
-    boolean hasSafeGdriveLink = gdriveLink.startsWith("https://drive.google.com/") || gdriveLink.startsWith("https://docs.google.com/");
+    boolean hasSafeGdriveLink = gdriveLink.startsWith("https://drive.google.com/")
+            || gdriveLink.startsWith("https://docs.google.com/")
+            || gdriveLink.startsWith("https://meet.google.com/");
+    boolean isGmeetLink = gdriveLink.startsWith("https://meet.google.com/");
+    String quotaError = (String) session.getAttribute("flashError");
+    if (quotaError != null) { session.removeAttribute("flashError"); }
 
     // Check if chat is enabled
     boolean chatEnabled = new SettingsDAO().isChatEnabled();
@@ -68,142 +75,21 @@
 </head>
 <body>
     <!-- Navbar -->
-    <nav class="navbar navbar-expand-md navbar-dark bg-primary">
-        <div class="container">
-            <a class="navbar-brand fw-bold" href="../ExamServlet?action=dashboard">
-                <i class="bi bi-journal-check me-2"></i>Exatuy
-            </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav me-auto">
-                    <li class="nav-item">
-                        <a class="nav-link active" href="../ExamServlet?action=dashboard">
-                            <i class="bi bi-house me-1"></i>Dashboard
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="../ExamServlet?action=list">
-                            <i class="bi bi-journal-text me-1"></i>Quiz Tersedia
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="../MateriServlet">
-                            <i class="bi bi-book me-1"></i>Materi
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="../AttendanceServlet?action=view">
-                            <i class="bi bi-check2-square me-1"></i>Absensi
-                        </a>
-                    </li>
-                    <% if (fileManagementEnabled) { %>
-                    <li class="nav-item">
-                        <a class="nav-link" href="../FileManagementServlet?action=list">
-                            <i class="bi bi-folder me-1"></i>Files
-                        </a>
-                    </li>
-                    <% } %>
-                    <li class="nav-item">
-                        <a class="nav-link" href="../ExamServlet?action=history">
-                            <i class="bi bi-clock-history me-1"></i>Riwayat
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="../TranscriptServlet?action=mine">
-                            <i class="bi bi-card-list me-1"></i>Transcript Nilai
-                        </a>
-                    </li>
-                    <% if (leaderboardPublished) { %>
-                    <li class="nav-item">
-                        <a class="nav-link" href="../LeaderboardServlet">
-                            <i class="bi bi-trophy me-1"></i>Leaderboard
-                        </a>
-                    </li>
-                    <% } %>
-                    <% if (chatEnabled) { %>
-                    <li class="nav-item">
-                        <a class="nav-link" href="../ChatServlet">
-                            <i class="bi bi-chat-dots me-1"></i>Chat
-                            <% if (chatUnreadCount > 0) { %>
-                            <span class="badge bg-danger"><%= chatUnreadCount %></span>
-                            <% } %>
-                        </a>
-                    </li>
-                    <% } %>
-                    <% if (hasSafeGdriveLink) { %>
-                    <li class="nav-item">
-                        <a class="nav-link" href="#" data-bs-toggle="modal" data-bs-target="#gdriveModal">
-                            <i class="bi bi-google me-1"></i>Google Drive
-                        </a>
-                    </li>
-                    <% } %>
-                    <%@ include file="custom-menu-items.jspf" %>
-                    <%-- Mobile: Quota Badge + Profile menu items shown in nav list --%>
-                    <li class="nav-item d-md-none">
-                        <hr class="my-2 border-light">
-                    </li>
-                    <li class="nav-item d-md-none mb-2">
-                        <a href="../PaymentSettingsServlet?action=checkout" class="quota-header-pill d-flex align-items-center justify-content-between text-decoration-none px-3 py-2 rounded">
-                            <span>
-                                <i class="bi bi-coin me-1"></i>
-                                <strong><%= quotaBalance %> / <%= maxQuota %> Poin</strong>
-                            </span>
-                            <small class="opacity-75"><i class="bi bi-clock me-1"></i><span class="quota-reset-countdown">--</span></small>
-                        </a>
-                    </li>
-                    <li class="nav-item d-md-none">
-                        <div class="d-flex align-items-center text-white py-2">
-                            <i class="bi bi-person-circle me-2 fs-5"></i>
-                            <span><%= ValidationUtil.sanitizeHtml(currentUser.getName()) %></span>
-                        </div>
-                    </li>
-                    <li class="nav-item d-md-none">
-                        <a class="nav-link" href="../ProfileServlet">
-                            <i class="bi bi-person me-2"></i>Profil Saya
-                        </a>
-                    </li>
-                    <li class="nav-item d-md-none">
-                        <a class="nav-link" href="../LogoutServlet">
-                            <i class="bi bi-box-arrow-left me-2"></i>Logout
-                        </a>
-                    </li>
-                </ul>
-                <%-- Desktop/Tablet: Quota Badge & Countdown + Profile dropdown --%>
-                <div class="d-none d-md-flex align-items-center gap-3">
-                    <a href="../PaymentSettingsServlet?action=checkout"
-                       class="quota-header-pill d-flex align-items-center gap-2 text-decoration-none px-3 py-1 rounded-pill"
-                       title="Saldo kuota aktif & hitung mundur reset tanggal 1 pukul 00:00 WIB. Klik untuk isi kuota.">
-                        <span class="badge <%= quotaBadgeClass %> rounded-pill px-2 py-1">
-                            <i class="bi bi-coin me-1"></i><%= quotaBalance %> / <%= maxQuota %> Poin
-                        </span>
-                        <small class="text-white d-none d-lg-inline" style="font-size:0.75rem; white-space:nowrap;">
-                            <i class="bi bi-arrow-clockwise me-1"></i>Reset: <span class="quota-reset-countdown">--</span>
-                        </small>
-                    </a>
-                    <div class="dropdown">
-                        <a href="#" class="d-flex align-items-center text-white text-decoration-none dropdown-toggle" data-bs-toggle="dropdown">
-                            <i class="bi bi-person-circle me-1 fs-5"></i>
-                            <span><%= ValidationUtil.sanitizeHtml(currentUser.getName()) %></span>
-                        </a>
-                        <ul class="dropdown-menu dropdown-menu-end">
-                            <li><a class="dropdown-item" href="../PaymentSettingsServlet?action=checkout"><i class="bi bi-wallet2 me-2"></i>Dompet Kuota (<%= quotaBalance %>/<%= maxQuota %>)</a></li>
-                            <li><a class="dropdown-item" href="../ProfileServlet"><i class="bi bi-person me-2"></i>Profil Saya</a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="../LogoutServlet"><i class="bi bi-box-arrow-left me-2"></i>Logout</a></li>
-                        </ul>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </nav>
+    <%@ include file="navbar.jspf" %>
 
     <!-- Main Content -->
     <div class="container py-4">
         <% if (success != null) { %>
         <div class="alert alert-success alert-dismissible fade show">
             <i class="bi bi-check-circle me-2"></i><%= ValidationUtil.sanitizeHtml(success) %>
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        <% } %>
+
+        <% if (quotaError != null) { %>
+        <div class="alert alert-warning alert-dismissible fade show">
+            <i class="bi bi-wallet2 me-2"></i><%= ValidationUtil.sanitizeHtml(quotaError) %>
+            <a href="PaymentSettingsServlet?action=checkout" class="alert-link ms-1">Beli paket kuota</a>
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
         <% } %>
@@ -587,13 +473,25 @@
                         <strong>Catatan:</strong> Pastikan Anda sudah login dengan akun Google yang terdaftar untuk mengakses folder ini.
                     </div>
                 </div>
-                <div class="modal-footer border-0 bg-light">
-                    <button type="button" class="btn btn-outline-secondary px-4" data-bs-dismiss="modal">
-                        <i class="bi bi-x-lg me-1"></i>Tutup
-                    </button>
-                    <a href="<%= ValidationUtil.sanitizeHtml(gdriveLink) %>" target="_blank" rel="noopener noreferrer" class="btn btn-danger px-4">
-                        <i class="bi bi-box-arrow-up-right me-1"></i>Buka Google Drive
-                    </a>
+                <div class="modal-footer border-0 bg-light flex-column align-items-stretch">
+                    <div class="alert <%= quotaBalance >= 1 ? "alert-success" : "alert-warning" %> small mb-2 text-start">
+                        <i class="bi bi-wallet2 me-1"></i>
+                        Saldo poin Anda: <strong><%= quotaBalance %> / 12</strong>.
+                        Membuka tautan ini memotong <strong>1 poin</strong><% if (quotaBalance < 1) { %> —
+                        poin habis, silakan <a href="PaymentSettingsServlet?action=checkout">beli paket kuota</a> dulu<% } %>.
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-outline-secondary px-4 flex-fill" data-bs-dismiss="modal">
+                            <i class="bi bi-x-lg me-1"></i>Tutup
+                        </button>
+                        <form method="post" action="GMeetServlet" class="flex-fill m-0">
+                            <input type="hidden" name="csrfToken" value="<%= session.getAttribute("csrfToken") %>">
+                            <button type="submit" class="btn btn-danger px-4 w-100" <%= quotaBalance < 1 ? "disabled" : "" %>>
+                                <i class="bi bi-box-arrow-up-right me-1"></i>
+                                Buka <%= isGmeetLink ? "Google Meet" : "Google Drive" %> (1 Poin)
+                            </button>
+                        </form>
+                    </div>
                 </div>
             </div>
         </div>

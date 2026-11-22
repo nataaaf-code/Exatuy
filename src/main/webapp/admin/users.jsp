@@ -1035,6 +1035,14 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
+                    // Muat ulang halaman agar seluruh daftar/dropdown tag ikut bersih
+                    // (tag juga dipakai di tabel user, filter, dan daftar target fitur).
+                    alert('Tag "' + tagName + '" dihapus dari ' + (data.updatedUsers || 0)
+                          + ' data. Halaman akan dimuat ulang.');
+                    window.location.reload();
+                    return;
+                }
+                if (false) {
                     // Remove tag from the list
                     var tagsList = document.getElementById('existingTagsList');
                     var tagBadge = tagsList.querySelector('[data-tag="' + tagName.replace(/"/g, '\\"') + '"]');

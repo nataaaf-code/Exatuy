@@ -120,7 +120,7 @@
             </div>
             <div class="d-flex flex-wrap gap-2">
                 <a href="<%= request.getContextPath() %>/PaymentSettingsServlet" class="btn btn-outline-primary btn-sm">
-                    <i class="bi bi-credit-card-2-front me-1"></i>Pengaturan Sumopod
+                    <i class="bi bi-credit-card-2-front me-1"></i>Pengaturan Pembayaran
                 </a>
                 <a href="<%= exportUrl %>" class="btn btn-success btn-sm">
                     <i class="bi bi-filetype-csv me-1"></i>Export CSV
@@ -278,7 +278,7 @@
                         <% if (hasFilter) { %>
                             Tidak ditemukan transaksi yang cocok dengan filter yang dipilih.
                         <% } else { %>
-                            Transaksi pembelian kuota siswa melalui Sumopod akan tercatat otomatis di sini.
+                            Transaksi pembelian kuota siswa melalui pembayaran online akan tercatat otomatis di sini.
                         <% } %>
                     </p>
                     <% if (hasFilter) { %>

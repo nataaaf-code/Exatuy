@@ -92,7 +92,7 @@
                                 <label for="questionImage" class="form-label">Gambar Soal <span class="text-muted">(opsional)</span></label>
                                 <input type="file" class="form-control" id="questionImage" name="questionImage"
                                        accept="image/jpeg,image/png,image/gif,image/webp">
-                                <div class="form-text">Format: JPG, PNG, GIF, WebP. Maks 5MB.</div>
+                                <div class="form-text">Format: JPG, PNG, GIF, WebP. Maks 2MB.</div>
                                 <% if (isEdit && question.getImagePath() != null && !question.getImagePath().isEmpty()) { %>
                                 <div class="mt-2">
                                     <label class="form-check">
@@ -277,9 +277,9 @@
         document.getElementById('questionImage').addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (file) {
-                // Validate file size (max 5MB)
-                if (file.size > 5 * 1024 * 1024) {
-                    alert('Ukuran file terlalu besar. Maksimal 5MB.');
+                // Validate file size (max 2MB — PRD #19)
+                if (file.size > 2 * 1024 * 1024) {
+                    alert('Ukuran file terlalu besar. Maksimal 2MB.');
                     e.target.value = '';
                     return;
                 }

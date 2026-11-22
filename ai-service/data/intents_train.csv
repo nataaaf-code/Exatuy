@@ -1,0 +1,121 @@
+text,intent,dummy_data
+apa itu pecahan senilai,tanya_materi,true
+jelaskan pengertian fotosintesis,tanya_materi,true
+kak aku belum paham perkalian pecahan,tanya_materi,true
+apa bedanya unsur dan senyawa,tanya_materi,true
+gimana cara mencari luas segitiga,tanya_materi,true
+tolong jelaskan hukum newton pertama,tanya_materi,true
+apa itu gaya gesek,tanya_materi,true
+aku mau belajar tentang sistem pencernaan,tanya_materi,true
+apa arti majas personifikasi,tanya_materi,true
+jelaskan cara kerja organ jantung,tanya_materi,true
+kak materi tentang bilangan bulat dong,tanya_materi,true
+apa itu energi kinetik,tanya_materi,true
+bagaimana proses terjadinya hujan,tanya_materi,true
+jelaskan perbedaan hewan herbivora dan karnivora,tanya_materi,true
+apa itu tabel periodik unsur,tanya_materi,true
+aku masih bingung sama konsep aljabar,tanya_materi,true
+gimana cara menghitung keliling lingkaran,tanya_materi,true
+apa itu perubahan wujud benda,tanya_materi,true
+jelaskan tentang rantai makanan,tanya_materi,true
+apa yang dimaksud dengan sudut lancip,tanya_materi,true
+kak tolong jelaskan cara menyederhanakan pecahan,tanya_materi,true
+apa itu kalimat efektif dalam bahasa indonesia,tanya_materi,true
+materi tentang listrik statis itu apa ya,tanya_materi,true
+jelasin dong apa itu persamaan linear satu variabel,tanya_materi,true
+kenapa jawaban nomor 3 salah,pembahasan_soal,true
+kak tolong bahas soal nomor 5,pembahasan_soal,true
+aku jawab b tapi kuncinya c kenapa ya,pembahasan_soal,true
+cara ngerjain soal ini gimana,pembahasan_soal,true
+pembahasan soal tadi belum aku ngerti,pembahasan_soal,true
+nomor 7 aku salah di langkah mana,pembahasan_soal,true
+tolong jelaskan jawaban yang benar untuk soal tadi,pembahasan_soal,true
+aku dapat nilai 60 kemarin muncul error di nomor 2,pembahasan_soal,true
+kenapa hasil akhir aku beda sama kunci,pembahasan_soal,true
+bahas ulang dong soal pecahan tadi,pembahasan_soal,true
+di soal nomor 9 aku pilih gambar b tapi salah,pembahasan_soal,true
+langkah penyelesaian soal itu gimana ya kak,pembahasan_soal,true
+aku gak paham pembahasan nomor 4,pembahasan_soal,true
+tolong koreksi cara aku mengerjakan soal ini,pembahasan_soal,true
+kunci jawaban soal 12 apa dan kenapa,pembahasan_soal,true
+aku salah hitung di soal luas segitiga,pembahasan_soal,true
+soal kemarin yang nomor 6 caranya gimana,pembahasan_soal,true
+kenapa opsi a dianggap salah,pembahasan_soal,true
+pembahasan nomor 10 tolong diperjelas,pembahasan_soal,true
+aku mau tanya soal yang tadi salah,pembahasan_soal,true
+cara menentukan jawaban yang tepat di soal itu,pembahasan_soal,true
+jawabanku hampir benar tapi ditolak kenapa,pembahasan_soal,true
+tolong jelaskan langkah nomor 8 yang benar,pembahasan_soal,true
+aku bingung pembahasan soal trigonometri tadi,pembahasan_soal,true
+sisa kuota saya berapa,info_kuota_pembayaran,true
+kak poin aku tinggal berapa,info_kuota_pembayaran,true
+cara beli kuota gimana,info_kuota_pembayaran,true
+aku mau top up 4 poin,info_kuota_pembayaran,true
+pembayaran pakai qris bisa,info_kuota_pembayaran,true
+invoice saya belum masuk,info_kuota_pembayaran,true
+transaksi saya statusnya pending terus,info_kuota_pembayaran,true
+kenapa kuota saya jadi nol,info_kuota_pembayaran,true
+berapa harga paket 8 poin,info_kuota_pembayaran,true
+kapan kuota reset,info_kuota_pembayaran,true
+aku sudah bayar tapi poin belum nambah,info_kuota_pembayaran,true
+metode pembayaran apa saja yang tersedia,info_kuota_pembayaran,true
+link pembayaran saya kadaluarsa,info_kuota_pembayaran,true
+saldo poin saya tidak bertambah setelah bayar,info_kuota_pembayaran,true
+apa maksud dompet kuota maksimal 12 poin,info_kuota_pembayaran,true
+saya mau beli paket 12 poin masih bisa,info_kuota_pembayaran,true
+kak struk pembayaran saya mana,info_kuota_pembayaran,true
+kuota saya habis padahal baru pakai sekali,info_kuota_pembayaran,true
+cara cek riwayat pembayaran,info_kuota_pembayaran,true
+apakah bisa refund kuota,info_kuota_pembayaran,true
+pembayaran saya gagal terus kenapa,info_kuota_pembayaran,true
+poin belajar saya kapan expired,info_kuota_pembayaran,true
+mau tanya tarif per poin berapa,info_kuota_pembayaran,true
+akun saya kena tagihan belum dibayar,info_kuota_pembayaran,true
+jadwal ujian matematika kapan,jadwal_pengumuman,true
+kapan google meet dimulai,jadwal_pengumuman,true
+ada pengumuman baru ya,jadwal_pengumuman,true
+jadwal kelas minggu ini apa,jadwal_pengumuman,true
+ujian ipa hari apa,jadwal_pengumuman,true
+kapan materi baru diupload,jadwal_pengumuman,true
+jam berapa exam dimulai besok,jadwal_pengumuman,true
+apakah ada kelas tambahan minggu depan,jadwal_pengumuman,true
+link gmeet hari ini mana,jadwal_pengumuman,true
+jadwal remedial kapan ya kak,jadwal_pengumuman,true
+pengumuman libur sudah keluar belum,jadwal_pengumuman,true
+exam susulan dijadwalkan tanggal berapa,jadwal_pengumuman,true
+kapan batas pengumpulan tugas,jadwal_pengumuman,true
+ada info jadwal try out,jadwal_pengumuman,true
+kelas minggu depan diundur bukan,jadwal_pengumuman,true
+kapan sesi konsultasi dengan pengajar,jadwal_pengumuman,true
+berapa lama durasi exam nanti,jadwal_pengumuman,true
+hari ini ada jadwal belajar atau tidak,jadwal_pengumuman,true
+pengumuman hasil ujian kapan diumumkan,jadwal_pengumuman,true
+jadwal pertemuan bulan depan sudah ada,jadwal_pengumuman,true
+kapan jadwal gmeet untuk kelas smp 8,jadwal_pengumuman,true
+info jadwal ujian akhir semester,jadwal_pengumuman,true
+apakah besok masuk,jadwal_pengumuman,true
+kapan pengajar upload nilai,jadwal_pengumuman,true
+resep nasi goreng enak gimana,out_of_context,true
+siapa presiden indonesia sekarang,out_of_context,true
+tolong buatkan kode python untuk sorting,out_of_context,true
+gosip artis terbaru apa,out_of_context,true
+cara menang taruhan bola,out_of_context,true
+apa itu cryptocurrency,out_of_context,true
+bikinin puisi cinta dong,out_of_context,true
+harga iphone terbaru berapa,out_of_context,true
+cara hack akun instagram orang,out_of_context,true
+siapa pemenang piala dunia,out_of_context,true
+rekomendasi film horor terbaik,out_of_context,true
+apa ibukota jepang,out_of_context,true
+tolong tuliskan lirik lagu terbaru,out_of_context,true
+cara menurunkan berat badan cepat,out_of_context,true
+berita politik hari ini apa,out_of_context,true
+bikin script javascript untuk bot,out_of_context,true
+apa itu saham dan cara mainnya,out_of_context,true
+cara memperbaiki motor matic,out_of_context,true
+siapa pacar artis korea itu,out_of_context,true
+jelaskan tentang blockchain,out_of_context,true
+tips main game mobile legend,out_of_context,true
+cara jualan online yang cepat kaya,out_of_context,true
+apa hukum mencuri dalam ajaran agama,out_of_context,true
+harga bensin sekarang berapa,out_of_context,true

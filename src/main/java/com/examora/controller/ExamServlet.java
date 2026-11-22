@@ -19,6 +19,7 @@ import com.examora.service.SubmissionService;
 import com.examora.service.UserService;
 import com.examora.service.RetakeCodeService;
 import com.examora.service.AuditService;
+import com.examora.service.QuotaService;
 import com.examora.model.RetakeCode;
 
 import jakarta.servlet.ServletException;
@@ -50,6 +51,7 @@ public class ExamServlet extends HttpServlet {
     private CustomPageDAO customPageDAO;
     private QuizExemptionDAO quizExemptionDAO;
     private RetakeCodeDAO retakeCodeDAO;
+    private QuotaService quotaService;
 
     @Override
     public void init() throws ServletException {
@@ -63,6 +65,7 @@ public class ExamServlet extends HttpServlet {
         customPageDAO = new CustomPageDAO();
         quizExemptionDAO = new QuizExemptionDAO();
         retakeCodeDAO = new RetakeCodeDAO();
+        quotaService = new QuotaService();
     }
 
     @Override
@@ -326,9 +329,10 @@ public class ExamServlet extends HttpServlet {
         List<InformationBoard> informationBoards = new ArrayList<>();
         try {
             String targetAudience = user.isAdmin() ? "admins" : "participants";
-            // Get information for "all" and specific user role
-            List<InformationBoard> allInfos = informationBoardDAO.findActiveForTarget("all");
-            List<InformationBoard> roleInfos = informationBoardDAO.findActiveForTarget(targetAudience);
+            // P1 #17 — saring juga berdasarkan jenjang siswa (grade_level)
+            String gradeLevel = user.getGradeLevel();
+            List<InformationBoard> allInfos = informationBoardDAO.findActiveForTargetAndGrade("all", gradeLevel);
+            List<InformationBoard> roleInfos = informationBoardDAO.findActiveForTargetAndGrade(targetAudience, gradeLevel);
 
             // Use Set to track IDs and avoid duplicates
             java.util.Set<Integer> seenIds = new java.util.HashSet<>();
@@ -471,6 +475,22 @@ public class ExamServlet extends HttpServlet {
                 }
             } catch (Exception e) {
                 System.err.println("Error deleting timeout submission: " + e.getMessage());
+            }
+        }
+
+        // P1 #15 — potong 1 poin kuota saat siswa memulai Exam.
+        // Percobaan ulang lewat kode retake / izin manual tidak dipotong lagi.
+        if (!allowRetake) {
+            try {
+                quotaService.consume(user.getId(), "exam", "quiz:" + quizId);
+            } catch (QuotaService.ServiceException quotaEx) {
+                request.setAttribute("error", quotaEx.getMessage());
+                try {
+                    listAvailableQuizzes(request, response);
+                } catch (UserService.ServiceException userEx) {
+                    throw new ServletException(userEx);
+                }
+                return;
             }
         }
 

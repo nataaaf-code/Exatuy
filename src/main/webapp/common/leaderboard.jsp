@@ -237,43 +237,8 @@
     <% if (isAdmin) { %>
     <%@ include file="../admin/sidebar.jsp" %>
     <% } else { %>
-    <nav class="navbar navbar-expand-md navbar-dark bg-primary">
-        <div class="container-fluid">
-            <a class="navbar-brand fw-bold" href="../ExamServlet?action=dashboard">
-                <i class="bi bi-shield-lock me-1"></i>Examora
-            </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav me-auto">
-                    <li class="nav-item">
-                        <a class="nav-link" href="../ExamServlet?action=dashboard"><i class="bi bi-house me-1"></i>Dashboard</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="../ExamServlet?action=list"><i class="bi bi-list-task me-1"></i>Quiz</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="../ExamServlet?action=history"><i class="bi bi-clock-history me-1"></i>Riwayat</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="../TranscriptServlet?action=mine"><i class="bi bi-card-list me-1"></i>Transcript</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link active" href="../LeaderboardServlet"><i class="bi bi-trophy me-1"></i>Leaderboard</a>
-                    </li>
-                </ul>
-                <ul class="navbar-nav">
-                    <li class="nav-item">
-                        <a class="nav-link" href="../ProfileServlet"><i class="bi bi-person me-1"></i><%= ValidationUtil.sanitizeHtml(currentUser.getName()) %></a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="../LogoutServlet"><i class="bi bi-box-arrow-left me-1"></i>Logout</a>
-                    </li>
-                </ul>
-            </div>
-        </div>
-    </nav>
+    <%-- Siswa memakai navbar bersama agar menu konsisten dengan halaman lain --%>
+    <%@ include file="../user/navbar.jspf" %>
     <% } %>
 
     <div class="<%= isAdmin ? "main-content" : "container-fluid mt-3" %>">

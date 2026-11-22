@@ -31,8 +31,8 @@ import java.util.UUID;
 @WebServlet("/QuestionServlet")
 @MultipartConfig(
     fileSizeThreshold = 1024 * 1024,      // 1 MB
-    maxFileSize = 1024 * 1024 * 5,        // 5 MB
-    maxRequestSize = 1024 * 1024 * 10     // 10 MB
+    maxFileSize = 1024 * 1024 * 2,        // 2 MB (batas gambar soal, PRD #19)
+    maxRequestSize = 1024 * 1024 * 6      // 6 MB (gambar 2 MB + field form)
 )
 public class QuestionServlet extends HttpServlet {
     private QuizService quizService;
@@ -54,8 +54,8 @@ public class QuestionServlet extends HttpServlet {
         ".jpg", ".jpeg", ".png", ".gif", ".webp"
     ));
 
-    // Maximum file size: 5MB
-    private static final long MAX_FILE_SIZE = 5 * 1024 * 1024;
+    // Maximum file size: 2MB (PRD #19 — diseragamkan dengan batas upload soal)
+    private static final long MAX_FILE_SIZE = 2 * 1024 * 1024;
 
     @Override
     public void init() throws ServletException {
@@ -278,7 +278,7 @@ public class QuestionServlet extends HttpServlet {
     private String saveImage(Part imagePart, String webAppPath) throws IOException {
         // Validate file size
         if (imagePart.getSize() > MAX_FILE_SIZE) {
-            throw new IOException("Ukuran file terlalu besar. Maksimal 5MB.");
+            throw new IOException("Ukuran file terlalu besar. Maksimal 2MB.");
         }
 
         // Validate MIME type from Part

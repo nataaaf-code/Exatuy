@@ -29,7 +29,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pengaturan Pembayaran Sumopod - Exatuy</title>
+    <title>Pengaturan Pembayaran Online - Exatuy</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
     <link href="<%= request.getContextPath() %>/assets/css/style.css" rel="stylesheet">
@@ -68,7 +68,7 @@
         <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
             <div>
                 <h1 class="h3 mb-1 fw-bold text-primary">
-                    <i class="bi bi-credit-card-2-front me-2"></i>Pengaturan Pembayaran Sumopod
+                    <i class="bi bi-credit-card-2-front me-2"></i>Pengaturan Pembayaran Online
                 </h1>
                 <nav aria-label="breadcrumb">
                     <ol class="breadcrumb mb-0">
@@ -98,11 +98,11 @@
         <% } %>
 
         <div class="row g-4">
-            <!-- Form Konfigurasi Sumopod -->
+            <!-- Form Konfigurasi Pembayaran -->
             <div class="col-lg-8">
                 <div class="card shadow-sm">
                     <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
-                        <span><i class="bi bi-shield-lock me-2"></i>Konfigurasi Gerbang Pembayaran Sumopod</span>
+                        <span><i class="bi bi-shield-lock me-2"></i>Konfigurasi Gerbang Pembayaran Online</span>
                         <% if (setting.isConfigured()) { %>
                             <span class="badge bg-success text-white">
                                 <i class="bi bi-check-circle me-1"></i>Terkonfigurasi (<%= setting.isLiveMode() ? "LIVE" : "SANDBOX" %>)
@@ -117,10 +117,10 @@
                         <form method="post" action="<%= request.getContextPath() %>/PaymentSettingsServlet">
                             <input type="hidden" name="csrfToken" value="<%= session.getAttribute("csrfToken") %>">
 
-                            <!-- API Key Sumopod -->
+                            <!-- API Key Pembayaran -->
                             <div class="mb-4">
                                 <label for="sumopodApiKey" class="form-label fw-bold">
-                                    API Key Sumopod (<code>X-Api-Key</code>)
+                                    API Key Pembayaran Online (<code>X-Api-Key</code>)
                                 </label>
                                 <% if (setting.isConfigured()) { %>
                                 <div class="alert alert-light border py-2 px-3 mb-2 d-flex justify-content-between align-items-center flex-wrap gap-2">
@@ -188,7 +188,7 @@
                                                        value="live" <%= setting.isLiveMode() ? "checked" : "" %> onchange="updateModeCards()">
                                                 <span class="fw-bold"><i class="bi bi-lightning-charge-fill me-1 text-success"></i>Live (Produksi)</span>
                                             </div>
-                                            <small class="text-muted d-block mt-1">Transaksi QRIS / Virtual Account nyata via Sumopod Managed Payment.</small>
+                                            <small class="text-muted d-block mt-1">Transaksi QRIS / Virtual Account nyata via gerbang pembayaran.</small>
                                         </label>
                                     </div>
                                 </div>
@@ -263,10 +263,10 @@
             <div class="col-lg-4">
                 <div class="card shadow-sm mb-4">
                     <div class="card-header">
-                        <h6 class="mb-0"><i class="bi bi-link-45deg me-2"></i>Endpoint Webhook Sumopod</h6>
+                        <h6 class="mb-0"><i class="bi bi-link-45deg me-2"></i>Endpoint Webhook Pembayaran</h6>
                     </div>
                     <div class="card-body">
-                        <p class="small text-muted mb-2">Salin URL berikut ke dashboard <strong>Sumopod Managed Payment</strong> untuk menerima pembaruan status transaksi secara otomatis:</p>
+                        <p class="small text-muted mb-2">Salin URL berikut ke dashboard <strong>Gerbang Pembayaran</strong> untuk menerima pembaruan status transaksi secara otomatis:</p>
                         <div class="input-group input-group-sm mb-3">
                             <input type="text" class="form-control font-monospace" id="webhookUrlInput" value="<%= ValidationUtil.sanitizeHtml(webhookUrl) %>" readonly>
                             <button class="btn btn-outline-primary" type="button" onclick="copyWebhookUrl()" title="Salin URL">

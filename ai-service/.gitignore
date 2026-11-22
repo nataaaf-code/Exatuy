@@ -1,0 +1,16 @@
+# ===== Virtualenv & cache Python =====
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.pyright/
+.ruff_cache/
+
+# ===== Secrets =====
+.env
+.env.*
+
+# ===== Artefak besar yang mudah dibangun ulang =====
+models/chroma/
+models/*.faiss
+data/*.log

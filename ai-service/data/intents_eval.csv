@@ -1,0 +1,61 @@
+text,intent,dummy_data
+apa yang dimaksud energi potensial,tanya_materi,true
+jelaskan proses fotosintesis pada tumbuhan,tanya_materi,true
+aku pengen tahu tentang bilangan prima,tanya_materi,true
+bagaimana cara menghitung volume kubus,tanya_materi,true
+apa perbedaan sel hewan dan sel tumbuhan,tanya_materi,true
+tolong jelaskan pengertian gaya magnet,tanya_materi,true
+materi pecahan campuran itu gimana,tanya_materi,true
+apa itu kalimat majemuk,tanya_materi,true
+jelaskan cara kerja sistem pernapasan manusia,tanya_materi,true
+apa itu satuan panjang meter,tanya_materi,true
+aku belum paham konsep perbandingan senilai,tanya_materi,true
+gimana cara mencari rata rata nilai,tanya_materi,true
+soal nomor 4 jawabanku salah padahal caranya sama,pembahasan_soal,true
+tolong bahas langkah penyelesaian nomor 11,pembahasan_soal,true
+kenapa di soal 8 aku harus pakai rumus itu,pembahasan_soal,true
+kak jawaban aku di nomor 5 keliru di mana,pembahasan_soal,true
+aku udah coba lagi tapi hasilnya tetap salah,pembahasan_soal,true
+pembahasan soal itu kok beda dengan caraku,pembahasan_soal,true
+nomor 2 aku kosong tolong dijelaskan,pembahasan_soal,true
+aku kurang paham kunci jawaban nomor 13,pembahasan_soal,true
+tolong ulas kesalahan aku di soal barusan,pembahasan_soal,true
+kenapa jawaban c lebih tepat daripada jawaban b,pembahasan_soal,true
+aku salah di bagian mana waktu mengerjakan soal tadi,pembahasan_soal,true
+soal nomor 15 caranya susah tolong dibahas,pembahasan_soal,true
+berapa sisa poin belajar aku sekarang,info_kuota_pembayaran,true
+aku mau isi ulang kuota 8 poin,info_kuota_pembayaran,true
+pembayaran sudah berhasil tapi status masih pending,info_kuota_pembayaran,true
+apakah pembayaran bisa lewat virtual account,info_kuota_pembayaran,true
+kapan saldo kuota aku direset jadi nol,info_kuota_pembayaran,true
+aku belum terima bukti pembayaran,info_kuota_pembayaran,true
+kenapa top up aku ditolak sistem,info_kuota_pembayaran,true
+berapa total harga paket 12 poin,info_kuota_pembayaran,true
+poin aku kepotong padahal tidak ikut exam,info_kuota_pembayaran,true
+bagaimana cara membayar paket kuota,info_kuota_pembayaran,true
+tagihan aku sudah lunas atau belum,info_kuota_pembayaran,true
+apa bedanya kuota dan poin belajar,info_kuota_pembayaran,true
+kapan jadwal exam bahasa indonesia,jadwal_pengumuman,true
+besok ada google meet jam berapa,jadwal_pengumuman,true
+tolong infokan jadwal kelas minggu ini,jadwal_pengumuman,true
+kapan pengumuman nilai keluar,jadwal_pengumuman,true
+jadwal ujian akhir sudah ditetapkan belum,jadwal_pengumuman,true
+apakah minggu depan ada try out,jadwal_pengumuman,true
+link meet untuk kelas hari ini mana,jadwal_pengumuman,true
+kapan sesi remedial dimulai,jadwal_pengumuman,true
+ada pengumuman tentang libur semester,jadwal_pengumuman,true
+jadwal konsultasi pengajar hari apa,jadwal_pengumuman,true
+exam susulan kapan dijadwalkan,jadwal_pengumuman,true
+apakah kelas malam ini tetap jalan,jadwal_pengumuman,true
+resep ayam geprek pedas gimana,out_of_context,true
+siapa juara liga champion tahun ini,out_of_context,true
+tolong buatkan fungsi java untuk login,out_of_context,true
+apa kabar artis ibukota hari ini,out_of_context,true
+cara investasi emas untuk pemula,out_of_context,true
+bikinin cerpen tentang persahabatan,out_of_context,true
+berapa harga tiket konser musik,out_of_context,true
+cara meretas wifi tetangga,out_of_context,true
+siapa penemu bola lampu,out_of_context,true
+rekomendasi tempat wisata di bali,out_of_context,true
+cara membuat kue brownies kukus,out_of_context,true
+apa itu metaverse dan cara kerjanya,out_of_context,true

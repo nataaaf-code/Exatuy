@@ -1,0 +1,488 @@
+{
+  "dummy_data": true,
+  "kkm": 70,
+  "n_students": 50,
+  "class_balance": {
+    "at_risk": 16,
+    "aman": 34
+  },
+  "model_comparison": [
+    {
+      "model": "LogisticRegression",
+      "features": "raw",
+      "n_features": 5,
+      "f1": 0.76,
+      "f1_std": 0.1672,
+      "precision": 0.6833,
+      "recall": 0.8667,
+      "roc_auc": 0.8524,
+      "roc_auc_std": 0.1316,
+      "accuracy": 0.84,
+      "best_params": {
+        "C": 1.0
+      },
+      "cv_scheme": "stratified 5-fold (transform fit per fold)",
+      "n_rows": 50
+    },
+    {
+      "model": "RandomForest",
+      "features": "raw",
+      "n_features": 5,
+      "f1": 0.8254,
+      "f1_std": 0.1759,
+      "precision": 0.7933,
+      "recall": 0.8667,
+      "roc_auc": 0.925,
+      "roc_auc_std": 0.0778,
+      "accuracy": 1.0,
+      "best_params": {
+        "max_depth": 5,
+        "n_estimators": 200
+      },
+      "cv_scheme": "stratified 5-fold (transform fit per fold)",
+      "n_rows": 50
+    },
+    {
+      "model": "LogisticRegression",
+      "features": "engineered",
+      "n_features": 10,
+      "f1": 0.779,
+      "f1_std": 0.1491,
+      "precision": 0.7167,
+      "recall": 0.8667,
+      "roc_auc": 0.8702,
+      "roc_auc_std": 0.1256,
+      "accuracy": 0.88,
+      "best_params": {
+        "C": 1.0
+      },
+      "cv_scheme": "stratified 5-fold (transform fit per fold)",
+      "n_rows": 50
+    },
+    {
+      "model": "RandomForest",
+      "features": "engineered",
+      "n_features": 10,
+      "f1": 0.7759,
+      "f1_std": 0.0936,
+      "precision": 0.7767,
+      "recall": 0.8,
+      "roc_auc": 0.9238,
+      "roc_auc_std": 0.0933,
+      "accuracy": 0.98,
+      "best_params": {
+        "max_depth": 3,
+        "n_estimators": 200
+      },
+      "cv_scheme": "stratified 5-fold (transform fit per fold)",
+      "n_rows": 50
+    }
+  ],
+  "best_model": {
+    "model": "RandomForest",
+    "features": "raw",
+    "n_features": 5,
+    "f1": 0.8254,
+    "f1_std": 0.1759,
+    "precision": 0.7933,
+    "recall": 0.8667,
+    "roc_auc": 0.925,
+    "roc_auc_std": 0.0778,
+    "accuracy": 1.0,
+    "best_params": {
+      "max_depth": 5,
+      "n_estimators": 200
+    },
+    "cv_scheme": "stratified 5-fold (transform fit per fold)",
+    "n_rows": 50
+  },
+  "feature_engineering_impact": {
+    "model": "LogisticRegression",
+    "f1_sebelum": 0.76,
+    "f1_sesudah": 0.779,
+    "delta_f1": 0.019,
+    "roc_auc_sebelum": 0.8524,
+    "roc_auc_sesudah": 0.8702,
+    "delta_roc_auc": 0.0178
+  },
+  "hardest_topics": [
+    {
+      "topic": "listrik_statis",
+      "kelompok": "IPA SMP",
+      "rata_rata_error": 0.4877,
+      "siswa_error_tinggi": 12
+    },
+    {
+      "topic": "fotosintesis",
+      "kelompok": "IPA SD",
+      "rata_rata_error": 0.4705,
+      "siswa_error_tinggi": 11
+    },
+    {
+      "topic": "aljabar",
+      "kelompok": "Matematika SMP",
+      "rata_rata_error": 0.4416,
+      "siswa_error_tinggi": 12
+    },
+    {
+      "topic": "pecahan",
+      "kelompok": "Matematika SD",
+      "rata_rata_error": 0.4273,
+      "siswa_error_tinggi": 10
+    }
+  ],
+  "at_risk_students": [
+    {
+      "student_id": 14,
+      "grade_level": "SD-6",
+      "risk_score": 0.9975,
+      "predicted_label": "at_risk",
+      "reason": "error topik 72%, kehadiran 72%, 73s/soal"
+    },
+    {
+      "student_id": 40,
+      "grade_level": "SMP-8",
+      "risk_score": 0.9972,
+      "predicted_label": "at_risk",
+      "reason": "error topik 59%, kehadiran 81%, 78s/soal"
+    },
+    {
+      "student_id": 50,
+      "grade_level": "SMP-7",
+      "risk_score": 0.9881,
+      "predicted_label": "at_risk",
+      "reason": "error topik 57%, kehadiran 68%, 78s/soal"
+    },
+    {
+      "student_id": 1,
+      "grade_level": "SD-4",
+      "risk_score": 0.9813,
+      "predicted_label": "at_risk",
+      "reason": "error topik 57%, kehadiran 72%, 66s/soal"
+    },
+    {
+      "student_id": 37,
+      "grade_level": "SMP-8",
+      "risk_score": 0.9784,
+      "predicted_label": "at_risk",
+      "reason": "error topik 58%, kehadiran 88%, 76s/soal"
+    },
+    {
+      "student_id": 41,
+      "grade_level": "SD-5",
+      "risk_score": 0.9764,
+      "predicted_label": "at_risk",
+      "reason": "error topik 56%, kehadiran 62%, 64s/soal"
+    },
+    {
+      "student_id": 18,
+      "grade_level": "SD-4",
+      "risk_score": 0.9714,
+      "predicted_label": "at_risk",
+      "reason": "error topik 46%, kehadiran 84%, 79s/soal"
+    },
+    {
+      "student_id": 30,
+      "grade_level": "SD-5",
+      "risk_score": 0.9448,
+      "predicted_label": "at_risk",
+      "reason": "error topik 71%, kehadiran 85%, 57s/soal"
+    },
+    {
+      "student_id": 33,
+      "grade_level": "SD-6",
+      "risk_score": 0.9439,
+      "predicted_label": "at_risk",
+      "reason": "error topik 45%, kehadiran 94%, 79s/soal"
+    },
+    {
+      "student_id": 15,
+      "grade_level": "SD-6",
+      "risk_score": 0.9108,
+      "predicted_label": "at_risk",
+      "reason": "error topik 37%, kehadiran 89%, 83s/soal"
+    },
+    {
+      "student_id": 12,
+      "grade_level": "SD-4",
+      "risk_score": 0.8952,
+      "predicted_label": "at_risk",
+      "reason": "error topik 69%, kehadiran 59%, 49s/soal"
+    },
+    {
+      "student_id": 5,
+      "grade_level": "SMP-7",
+      "risk_score": 0.8916,
+      "predicted_label": "at_risk",
+      "reason": "error topik 52%, kehadiran 85%, 61s/soal"
+    },
+    {
+      "student_id": 47,
+      "grade_level": "SMP-7",
+      "risk_score": 0.8689,
+      "predicted_label": "at_risk",
+      "reason": "error topik 48%, kehadiran 95%, 79s/soal"
+    },
+    {
+      "student_id": 19,
+      "grade_level": "SD-5",
+      "risk_score": 0.8466,
+      "predicted_label": "at_risk",
+      "reason": "error topik 44%, kehadiran 90%, 61s/soal"
+    },
+    {
+      "student_id": 6,
+      "grade_level": "SD-5",
+      "risk_score": 0.7832,
+      "predicted_label": "at_risk",
+      "reason": "error topik 51%, kehadiran 95%, 21s/soal"
+    },
+    {
+      "student_id": 42,
+      "grade_level": "SD-5",
+      "risk_score": 0.7041,
+      "predicted_label": "at_risk",
+      "reason": "error topik 46%, kehadiran 85%, 56s/soal"
+    },
+    {
+      "student_id": 21,
+      "grade_level": "SD-6",
+      "risk_score": 0.4369,
+      "predicted_label": "aman",
+      "reason": "error topik 51%, kehadiran 68%, 59s/soal"
+    },
+    {
+      "student_id": 11,
+      "grade_level": "SMP-8",
+      "risk_score": 0.3469,
+      "predicted_label": "aman",
+      "reason": "error topik 49%, kehadiran 97%, 62s/soal"
+    },
+    {
+      "student_id": 7,
+      "grade_level": "SD-5",
+      "risk_score": 0.3424,
+      "predicted_label": "aman",
+      "reason": "error topik 58%, kehadiran 80%, 27s/soal"
+    },
+    {
+      "student_id": 43,
+      "grade_level": "SMP-8",
+      "risk_score": 0.3153,
+      "predicted_label": "aman",
+      "reason": "error topik 52%, kehadiran 86%, 49s/soal"
+    },
+    {
+      "student_id": 34,
+      "grade_level": "SD-4",
+      "risk_score": 0.2917,
+      "predicted_label": "aman",
+      "reason": "error topik 63%, kehadiran 92%, 48s/soal"
+    },
+    {
+      "student_id": 35,
+      "grade_level": "SD-6",
+      "risk_score": 0.2322,
+      "predicted_label": "aman",
+      "reason": "error topik 30%, kehadiran 72%, 60s/soal"
+    },
+    {
+      "student_id": 3,
+      "grade_level": "SD-6",
+      "risk_score": 0.1811,
+      "predicted_label": "aman",
+      "reason": "error topik 53%, kehadiran 86%, 56s/soal"
+    },
+    {
+      "student_id": 24,
+      "grade_level": "SD-6",
+      "risk_score": 0.164,
+      "predicted_label": "aman",
+      "reason": "error topik 54%, kehadiran 98%, 59s/soal"
+    },
+    {
+      "student_id": 16,
+      "grade_level": "SD-5",
+      "risk_score": 0.1164,
+      "predicted_label": "aman",
+      "reason": "error topik 46%, kehadiran 94%, 49s/soal"
+    },
+    {
+      "student_id": 32,
+      "grade_level": "SMP-7",
+      "risk_score": 0.115,
+      "predicted_label": "aman",
+      "reason": "error topik 40%, kehadiran 84%, 21s/soal"
+    },
+    {
+      "student_id": 44,
+      "grade_level": "SD-5",
+      "risk_score": 0.0967,
+      "predicted_label": "aman",
+      "reason": "error topik 42%, kehadiran 75%, 54s/soal"
+    },
+    {
+      "student_id": 4,
+      "grade_level": "SMP-7",
+      "risk_score": 0.0945,
+      "predicted_label": "aman",
+      "reason": "error topik 36%, kehadiran 94%, 46s/soal"
+    },
+    {
+      "student_id": 26,
+      "grade_level": "SMP-8",
+      "risk_score": 0.0869,
+      "predicted_label": "aman",
+      "reason": "error topik 49%, kehadiran 93%, 42s/soal"
+    },
+    {
+      "student_id": 38,
+      "grade_level": "SD-4",
+      "risk_score": 0.075,
+      "predicted_label": "aman",
+      "reason": "error topik 35%, kehadiran 90%, 20s/soal"
+    },
+    {
+      "student_id": 31,
+      "grade_level": "SD-6",
+      "risk_score": 0.0721,
+      "predicted_label": "aman",
+      "reason": "error topik 44%, kehadiran 87%, 46s/soal"
+    },
+    {
+      "student_id": 28,
+      "grade_level": "SMP-8",
+      "risk_score": 0.0656,
+      "predicted_label": "aman",
+      "reason": "error topik 31%, kehadiran 82%, 58s/soal"
+    },
+    {
+      "student_id": 8,
+      "grade_level": "SMP-8",
+      "risk_score": 0.0554,
+      "predicted_label": "aman",
+      "reason": "error topik 40%, kehadiran 73%, 22s/soal"
+    },
+    {
+      "student_id": 25,
+      "grade_level": "SD-5",
+      "risk_score": 0.0506,
+      "predicted_label": "aman",
+      "reason": "error topik 36%, kehadiran 94%, 58s/soal"
+    },
+    {
+      "student_id": 49,
+      "grade_level": "SD-6",
+      "risk_score": 0.0482,
+      "predicted_label": "aman",
+      "reason": "error topik 47%, kehadiran 91%, 42s/soal"
+    },
+    {
+      "student_id": 17,
+      "grade_level": "SD-6",
+      "risk_score": 0.0466,
+      "predicted_label": "aman",
+      "reason": "error topik 49%, kehadiran 89%, 53s/soal"
+    },
+    {
+      "student_id": 9,
+      "grade_level": "SD-4",
+      "risk_score": 0.046,
+      "predicted_label": "aman",
+      "reason": "error topik 37%, kehadiran 80%, 30s/soal"
+    },
+    {
+      "student_id": 39,
+      "grade_level": "SMP-8",
+      "risk_score": 0.0439,
+      "predicted_label": "aman",
+      "reason": "error topik 40%, kehadiran 89%, 45s/soal"
+    },
+    {
+      "student_id": 45,
+      "grade_level": "SMP-8",
+      "risk_score": 0.0431,
+      "predicted_label": "aman",
+      "reason": "error topik 36%, kehadiran 99%, 57s/soal"
+    },
+    {
+      "student_id": 20,
+      "grade_level": "SD-4",
+      "risk_score": 0.0294,
+      "predicted_label": "aman",
+      "reason": "error topik 36%, kehadiran 69%, 25s/soal"
+    },
+    {
+      "student_id": 29,
+      "grade_level": "SD-5",
+      "risk_score": 0.0283,
+      "predicted_label": "aman",
+      "reason": "error topik 53%, kehadiran 91%, 42s/soal"
+    },
+    {
+      "student_id": 13,
+      "grade_level": "SMP-8",
+      "risk_score": 0.0218,
+      "predicted_label": "aman",
+      "reason": "error topik 39%, kehadiran 90%, 45s/soal"
+    },
+    {
+      "student_id": 27,
+      "grade_level": "SD-5",
+      "risk_score": 0.0168,
+      "predicted_label": "aman",
+      "reason": "error topik 38%, kehadiran 73%, 30s/soal"
+    },
+    {
+      "student_id": 22,
+      "grade_level": "SMP-7",
+      "risk_score": 0.016,
+      "predicted_label": "aman",
+      "reason": "error topik 37%, kehadiran 90%, 50s/soal"
+    },
+    {
+      "student_id": 36,
+      "grade_level": "SD-4",
+      "risk_score": 0.01,
+      "predicted_label": "aman",
+      "reason": "error topik 34%, kehadiran 85%, 47s/soal"
+    },
+    {
+      "student_id": 23,
+      "grade_level": "SD-5",
+      "risk_score": 0.0076,
+      "predicted_label": "aman",
+      "reason": "error topik 40%, kehadiran 80%, 47s/soal"
+    },
+    {
+      "student_id": 46,
+      "grade_level": "SMP-8",
+      "risk_score": 0.005,
+      "predicted_label": "aman",
+      "reason": "error topik 24%, kehadiran 96%, 53s/soal"
+    },
+    {
+      "student_id": 48,
+      "grade_level": "SMP-7",
+      "risk_score": 0.005,
+      "predicted_label": "aman",
+      "reason": "error topik 28%, kehadiran 100%, 43s/soal"
+    },
+    {
+      "student_id": 2,
+      "grade_level": "SMP-7",
+      "risk_score": 0.0,
+      "predicted_label": "aman",
+      "reason": "error topik 36%, kehadiran 100%, 49s/soal"
+    },
+    {
+      "student_id": 10,
+      "grade_level": "SMP-8",
+      "risk_score": 0.0,
+      "predicted_label": "aman",
+      "reason": "error topik 29%, kehadiran 100%, 32s/soal"
+    }
+  ],
+  "dataset_path": "/root/documents/tools/Exatuy/Exatuy-main/ai-service/data/students_dummy.csv",
+  "keterbatasan": "Dataset sintetis 50 siswa (dummy_data = true) hasil simulasi distribusi statistik seed 42, bukan data siswa asli Bimbel Mentari. Ukuran sampel kecil sehingga confidence interval lebar dan kelas minoritas rentan overfitting; kalibrasi ulang wajib dilakukan saat data asli terkumpul."
+}

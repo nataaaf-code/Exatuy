@@ -283,6 +283,22 @@
                                 </select>
                             </div>
                             <div class="col-md-4 mb-3">
+                                <label class="form-label">Kategori *</label>
+                                <select class="form-select" name="category" required>
+                                    <% for (String _cat : com.examora.model.InformationBoard.CATEGORIES) { %>
+                                    <option value="<%= _cat %>"><%= _cat %></option>
+                                    <% } %>
+                                </select>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Target Jenjang *</label>
+                                <select class="form-select" name="targetGrade" required>
+                                    <% for (String _gr : com.examora.model.InformationBoard.GRADES) { %>
+                                    <option value="<%= _gr %>"><%= "ALL".equals(_gr) ? "Semua Jenjang" : _gr %></option>
+                                    <% } %>
+                                </select>
+                            </div>
+                            <div class="col-md-4 mb-3">
                                 <label class="form-label">Tampilkan Hingga</label>
                                 <input type="datetime-local" class="form-control" name="showUntil">
                             </div>
@@ -363,6 +379,22 @@
                                     <option value="all">Semua User</option>
                                     <option value="participants">Peserta Saja</option>
                                     <option value="admins">Admin Saja</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Kategori *</label>
+                                <select class="form-select" name="category" id="editCategory" required>
+                                    <% for (String _cat : com.examora.model.InformationBoard.CATEGORIES) { %>
+                                    <option value="<%= _cat %>"><%= _cat %></option>
+                                    <% } %>
+                                </select>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Target Jenjang *</label>
+                                <select class="form-select" name="targetGrade" id="editTargetGrade" required>
+                                    <% for (String _gr : com.examora.model.InformationBoard.GRADES) { %>
+                                    <option value="<%= _gr %>"><%= "ALL".equals(_gr) ? "Semua Jenjang" : _gr %></option>
+                                    <% } %>
                                 </select>
                             </div>
                             <div class="col-md-4 mb-3">
@@ -455,6 +487,10 @@
                     document.getElementById('editInfoType').value = data.infoType || 'info';
                     document.getElementById('editPriority').value = data.priority || 'normal';
                     document.getElementById('editTargetAudience').value = data.targetAudience || 'all';
+                    var catEl = document.getElementById('editCategory');
+                    if (catEl) { catEl.value = data.category || 'Umum'; }
+                    var gradeEl = document.getElementById('editTargetGrade');
+                    if (gradeEl) { gradeEl.value = data.targetGrade || 'ALL'; }
                     document.getElementById('editShowUntil').value = data.showUntil || '';
                     document.getElementById('editIsActive').checked = data.isActive || false;
                     var modal = new bootstrap.Modal(document.getElementById('editInfoModal'));

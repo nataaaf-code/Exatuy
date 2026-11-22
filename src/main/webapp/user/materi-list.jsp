@@ -36,71 +36,7 @@
 </head>
 <body>
     <!-- Navbar -->
-    <nav class="navbar navbar-expand-md navbar-dark bg-primary">
-        <div class="container">
-            <a class="navbar-brand fw-bold" href="../ExamServlet?action=dashboard">
-                <i class="bi bi-journal-check me-2"></i>Exatuy
-            </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav me-auto">
-                    <li class="nav-item">
-                        <a class="nav-link" href="../ExamServlet?action=dashboard">
-                            <i class="bi bi-house me-1"></i>Dashboard
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="../ExamServlet?action=list">
-                            <i class="bi bi-journal-text me-1"></i>Quiz Tersedia
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link active" href="../MateriServlet">
-                            <i class="bi bi-book me-1"></i>Materi
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="../AttendanceServlet?action=view">
-                            <i class="bi bi-check2-square me-1"></i>Absensi
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="../ExamServlet?action=history">
-                            <i class="bi bi-clock-history me-1"></i>Riwayat
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="../TranscriptServlet?action=mine">
-                            <i class="bi bi-card-list me-1"></i>Transcript
-                        </a>
-                    </li>
-                    <% if (chatEnabled) { %>
-                    <li class="nav-item">
-                        <a class="nav-link" href="../ChatServlet">
-                            <i class="bi bi-chat-dots me-1"></i>Chat
-                            <% if (chatUnreadCount > 0) { %><span class="badge bg-danger"><%= chatUnreadCount %></span><% } %>
-                        </a>
-                    </li>
-                    <% } %>
-                </ul>
-                <div class="d-none d-md-flex align-items-center">
-                    <div class="dropdown">
-                        <a href="#" class="d-flex align-items-center text-white text-decoration-none dropdown-toggle" data-bs-toggle="dropdown">
-                            <i class="bi bi-person-circle me-1 fs-5"></i>
-                            <span><%= ValidationUtil.sanitizeHtml(currentUser.getName()) %></span>
-                        </a>
-                        <ul class="dropdown-menu dropdown-menu-end">
-                            <li><a class="dropdown-item" href="../ProfileServlet"><i class="bi bi-person me-2"></i>Profil Saya</a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="../LogoutServlet"><i class="bi bi-box-arrow-left me-2"></i>Logout</a></li>
-                        </ul>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </nav>
+    <%@ include file="navbar.jspf" %>
 
     <div class="container py-4">
         <div class="mb-4">

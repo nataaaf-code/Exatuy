@@ -15,7 +15,17 @@ public class InformationBoard {
     private String infoType;  // announcement, info, warning, success
     private String priority;  // low, normal, high, urgent
     private String targetAudience;  // all, participants, admins
+    private String category;        // Info Exam, Jadwal GMeet, Tagihan & Kuota, Umum
+    private String targetGrade;     // ALL, SD-1..SD-6, SMP-7..SMP-9
     private Boolean isActive;
+
+    /** Kategori resmi pengumuman sesuai PRD (#17). */
+    public static final String[] CATEGORIES = {"Info Exam", "Jadwal GMeet", "Tagihan & Kuota", "Umum"};
+
+    /** Pilihan jenjang untuk filter target_grade. */
+    public static final String[] GRADES = {
+            "ALL", "SD-1", "SD-2", "SD-3", "SD-4", "SD-5", "SD-6", "SMP-7", "SMP-8", "SMP-9"
+    };
     private LocalDateTime showUntil;
     private Integer createdBy;
     private LocalDateTime createdAt;
@@ -56,6 +66,32 @@ public class InformationBoard {
 
     public String getTargetAudience() { return targetAudience; }
     public void setTargetAudience(String targetAudience) { this.targetAudience = targetAudience; }
+
+    public String getCategory() { return category != null ? category : "Umum"; }
+    public void setCategory(String category) { this.category = category; }
+
+    public String getTargetGrade() { return targetGrade != null ? targetGrade : "ALL"; }
+    public void setTargetGrade(String targetGrade) { this.targetGrade = targetGrade; }
+
+    /** Tampilan jenjang: "ALL" -> "Semua Jenjang". */
+    public String getTargetGradeDisplay() {
+        String grade = getTargetGrade();
+        return "ALL".equalsIgnoreCase(grade) ? "Semua Jenjang" : grade;
+    }
+
+    /** Warna badge kategori untuk dashboard siswa. */
+    public String getCategoryBadgeClass() {
+        switch (getCategory()) {
+            case "Info Exam":
+                return "bg-primary bg-opacity-10 text-primary";
+            case "Jadwal GMeet":
+                return "bg-success bg-opacity-10 text-success";
+            case "Tagihan & Kuota":
+                return "bg-warning bg-opacity-10 text-warning";
+            default:
+                return "bg-secondary bg-opacity-10 text-secondary";
+        }
+    }
 
     public Boolean getIsActive() { return isActive; }
     public void setIsActive(Boolean isActive) { this.isActive = isActive; }

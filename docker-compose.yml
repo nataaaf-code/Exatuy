@@ -43,10 +43,47 @@ services:
       - DB_URL=jdbc:mysql://mysql:3306/examora_db?useSSL=false&serverTimezone=Asia/Jakarta&allowPublicKeyRetrieval=true
       - DB_USERNAME=examora_app
       - DB_PASSWORD=${MYSQL_PASSWORD}
+      - AI_SERVICE_BASE_URL=${AI_SERVICE_BASE_URL:-http://ai-service:8000}
       - CATALINA_OPTS=-Dorg.apache.catalina.connector.Response.DEFAULT_CHARSET=UTF-8 -Dorg.apache.coyote.http11.DefaultCharset=UTF-8
     volumes:
       - ./uploads:/app/uploads:rw
       - ./tomcat-conf/server.xml:/usr/local/tomcat/conf/server.xml:ro
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - examora-network
+
+  # AI & DS Microservice (FastAPI) — opsional, aktifkan dengan profil "ai":
+  #   docker compose --profile ai up -d ai-service
+  # Docs interaktif: http://localhost:8000/docs
+  ai-service:
+    build:
+      context: ./ai-service
+      dockerfile: Dockerfile
+    container_name: examora-ai
+    restart: unless-stopped
+    profiles:
+      - ai
+    ports:
+      # 8090 dipakai karena 8000/8001/8002 sudah terisi layanan lain di VPS ini.
+      - "8090:8000"
+    environment:
+      - TZ=Asia/Jakarta
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - GEMINI_MODEL=${GEMINI_MODEL:-gemini-2.0-flash}
+      - RAG_BACKEND=${RAG_BACKEND:-tfidf-faiss}
+      - INTENT_MIN_CONFIDENCE=${INTENT_MIN_CONFIDENCE:-0.35}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
+      - TELEGRAM_WEBHOOK_SECRET=${TELEGRAM_WEBHOOK_SECRET:-}
+      - WHATSAPP_TOKEN=${WHATSAPP_TOKEN:-}
+      - WHATSAPP_PHONE_NUMBER_ID=${WHATSAPP_PHONE_NUMBER_ID:-}
+      - HEALTH_CHECK_DB=true
+      - MYSQL_HOST=mysql
+      - MYSQL_PORT=3306
+      - MYSQL_USER=${MYSQL_USER:-examora_app}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD:-}
+      - MYSQL_DATABASE=${MYSQL_DATABASE:-examora_db}
     depends_on:
       mysql:
         condition: service_healthy

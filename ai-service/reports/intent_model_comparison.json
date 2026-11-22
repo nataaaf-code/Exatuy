@@ -1,0 +1,384 @@
+{
+  "dummy_data": true,
+  "task": "klasifikasi intent percakapan siswa (5 kelas)",
+  "n_train": 120,
+  "n_eval": 60,
+  "class_balance": {
+    "tanya_materi": 24,
+    "pembahasan_soal": 24,
+    "info_kuota_pembayaran": 24,
+    "jadwal_pengumuman": 24,
+    "out_of_context": 24
+  },
+  "model_comparison": [
+    {
+      "model": "tfidf-word + LogisticRegression",
+      "macro_f1": 0.9314,
+      "weighted_f1": 0.9314,
+      "accuracy": 0.9333,
+      "best_params": {
+        "clf__C": 0.5,
+        "tfidf__ngram_range": [
+          1,
+          2
+        ]
+      },
+      "cv_macro_f1": 0.8809,
+      "labels_order": [
+        "info_kuota_pembayaran",
+        "jadwal_pengumuman",
+        "out_of_context",
+        "pembahasan_soal",
+        "tanya_materi"
+      ]
+    },
+    {
+      "model": "tfidf-word + LinearSVC",
+      "macro_f1": 0.9492,
+      "weighted_f1": 0.9492,
+      "accuracy": 0.95,
+      "best_params": {
+        "clf__C": 3.0,
+        "tfidf__ngram_range": [
+          1,
+          2
+        ]
+      },
+      "cv_macro_f1": 0.8792,
+      "labels_order": [
+        "info_kuota_pembayaran",
+        "jadwal_pengumuman",
+        "out_of_context",
+        "pembahasan_soal",
+        "tanya_materi"
+      ]
+    },
+    {
+      "model": "tfidf-char + ComplementNB",
+      "macro_f1": 0.9119,
+      "weighted_f1": 0.9119,
+      "accuracy": 0.9167,
+      "best_params": {
+        "clf__alpha": 0.25
+      },
+      "cv_macro_f1": 0.8328,
+      "labels_order": [
+        "info_kuota_pembayaran",
+        "jadwal_pengumuman",
+        "out_of_context",
+        "pembahasan_soal",
+        "tanya_materi"
+      ]
+    }
+  ],
+  "detailed": [
+    {
+      "model": "tfidf-word + LogisticRegression",
+      "macro_f1": 0.9314,
+      "weighted_f1": 0.9314,
+      "accuracy": 0.9333,
+      "best_params": {
+        "clf__C": 0.5,
+        "tfidf__ngram_range": [
+          1,
+          2
+        ]
+      },
+      "cv_macro_f1": 0.8809,
+      "per_class": {
+        "info_kuota_pembayaran": {
+          "precision": 0.9166666666666666,
+          "recall": 0.9166666666666666,
+          "f1-score": 0.9166666666666666,
+          "support": 12.0
+        },
+        "jadwal_pengumuman": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 12.0
+        },
+        "out_of_context": {
+          "precision": 1.0,
+          "recall": 0.75,
+          "f1-score": 0.8571428571428571,
+          "support": 12.0
+        },
+        "pembahasan_soal": {
+          "precision": 0.8571428571428571,
+          "recall": 1.0,
+          "f1-score": 0.9230769230769231,
+          "support": 12.0
+        },
+        "tanya_materi": {
+          "precision": 0.9230769230769231,
+          "recall": 1.0,
+          "f1-score": 0.96,
+          "support": 12.0
+        },
+        "accuracy": 0.9333333333333333,
+        "macro avg": {
+          "precision": 0.9393772893772894,
+          "recall": 0.9333333333333332,
+          "f1-score": 0.9313772893772894,
+          "support": 60.0
+        },
+        "weighted avg": {
+          "precision": 0.9393772893772893,
+          "recall": 0.9333333333333333,
+          "f1-score": 0.9313772893772893,
+          "support": 60.0
+        }
+      },
+      "confusion_matrix": [
+        [
+          11,
+          0,
+          0,
+          1,
+          0
+        ],
+        [
+          0,
+          12,
+          0,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          9,
+          1,
+          1
+        ],
+        [
+          0,
+          0,
+          0,
+          12,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          12
+        ]
+      ],
+      "labels_order": [
+        "info_kuota_pembayaran",
+        "jadwal_pengumuman",
+        "out_of_context",
+        "pembahasan_soal",
+        "tanya_materi"
+      ]
+    },
+    {
+      "model": "tfidf-word + LinearSVC",
+      "macro_f1": 0.9492,
+      "weighted_f1": 0.9492,
+      "accuracy": 0.95,
+      "best_params": {
+        "clf__C": 3.0,
+        "tfidf__ngram_range": [
+          1,
+          2
+        ]
+      },
+      "cv_macro_f1": 0.8792,
+      "per_class": {
+        "info_kuota_pembayaran": {
+          "precision": 0.9166666666666666,
+          "recall": 0.9166666666666666,
+          "f1-score": 0.9166666666666666,
+          "support": 12.0
+        },
+        "jadwal_pengumuman": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 12.0
+        },
+        "out_of_context": {
+          "precision": 1.0,
+          "recall": 0.8333333333333334,
+          "f1-score": 0.9090909090909091,
+          "support": 12.0
+        },
+        "pembahasan_soal": {
+          "precision": 0.9230769230769231,
+          "recall": 1.0,
+          "f1-score": 0.96,
+          "support": 12.0
+        },
+        "tanya_materi": {
+          "precision": 0.9230769230769231,
+          "recall": 1.0,
+          "f1-score": 0.96,
+          "support": 12.0
+        },
+        "accuracy": 0.95,
+        "macro avg": {
+          "precision": 0.9525641025641025,
+          "recall": 0.95,
+          "f1-score": 0.9491515151515152,
+          "support": 60.0
+        },
+        "weighted avg": {
+          "precision": 0.9525641025641026,
+          "recall": 0.95,
+          "f1-score": 0.949151515151515,
+          "support": 60.0
+        }
+      },
+      "confusion_matrix": [
+        [
+          11,
+          0,
+          0,
+          1,
+          0
+        ],
+        [
+          0,
+          12,
+          0,
+          0,
+          0
+        ],
+        [
+          1,
+          0,
+          10,
+          0,
+          1
+        ],
+        [
+          0,
+          0,
+          0,
+          12,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          12
+        ]
+      ],
+      "labels_order": [
+        "info_kuota_pembayaran",
+        "jadwal_pengumuman",
+        "out_of_context",
+        "pembahasan_soal",
+        "tanya_materi"
+      ]
+    },
+    {
+      "model": "tfidf-char + ComplementNB",
+      "macro_f1": 0.9119,
+      "weighted_f1": 0.9119,
+      "accuracy": 0.9167,
+      "best_params": {
+        "clf__alpha": 0.25
+      },
+      "cv_macro_f1": 0.8328,
+      "per_class": {
+        "info_kuota_pembayaran": {
+          "precision": 0.9166666666666666,
+          "recall": 0.9166666666666666,
+          "f1-score": 0.9166666666666666,
+          "support": 12.0
+        },
+        "jadwal_pengumuman": {
+          "precision": 0.8571428571428571,
+          "recall": 1.0,
+          "f1-score": 0.9230769230769231,
+          "support": 12.0
+        },
+        "out_of_context": {
+          "precision": 1.0,
+          "recall": 0.6666666666666666,
+          "f1-score": 0.8,
+          "support": 12.0
+        },
+        "pembahasan_soal": {
+          "precision": 0.9230769230769231,
+          "recall": 1.0,
+          "f1-score": 0.96,
+          "support": 12.0
+        },
+        "tanya_materi": {
+          "precision": 0.9230769230769231,
+          "recall": 1.0,
+          "f1-score": 0.96,
+          "support": 12.0
+        },
+        "accuracy": 0.9166666666666666,
+        "macro avg": {
+          "precision": 0.923992673992674,
+          "recall": 0.9166666666666666,
+          "f1-score": 0.911948717948718,
+          "support": 60.0
+        },
+        "weighted avg": {
+          "precision": 0.9239926739926739,
+          "recall": 0.9166666666666666,
+          "f1-score": 0.911948717948718,
+          "support": 60.0
+        }
+      },
+      "confusion_matrix": [
+        [
+          11,
+          0,
+          0,
+          1,
+          0
+        ],
+        [
+          0,
+          12,
+          0,
+          0,
+          0
+        ],
+        [
+          1,
+          2,
+          8,
+          0,
+          1
+        ],
+        [
+          0,
+          0,
+          0,
+          12,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0,
+          12
+        ]
+      ],
+      "labels_order": [
+        "info_kuota_pembayaran",
+        "jadwal_pengumuman",
+        "out_of_context",
+        "pembahasan_soal",
+        "tanya_materi"
+      ]
+    }
+  ],
+  "selected_model": "tfidf-word + LinearSVC",
+  "selection_metric": "macro_f1",
+  "notes": "Data latih/eval adalah data sintetis berlabel dummy_data = true yang disusun manual meniru gaya bicara siswa SD/SMP. Evaluasi memakai file eval terpisah yang tidak dipakai saat tuning."
+}
