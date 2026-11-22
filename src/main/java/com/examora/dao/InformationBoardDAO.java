@@ -82,7 +82,8 @@ public class InformationBoardDAO {
     public List<InformationBoard> findActiveForTarget(String targetAudience) throws SQLException {
         String sql = "SELECT " + COLUMNS + " FROM information_board ib " +
                 "LEFT JOIN users u ON ib.created_by = u.id WHERE ib.is_active = 1 " +
-                "AND (ib.target_audience = 'all' OR ib.target_audience = ?) " +
+                "AND (LOWER(TRIM(COALESCE(ib.target_audience, 'all'))) = 'all' " +
+                "     OR LOWER(TRIM(COALESCE(ib.target_audience, 'all'))) = LOWER(TRIM(?))) " +
                 "AND (ib.show_until IS NULL OR ib.show_until > NOW()) " +
                 "ORDER BY ib.priority DESC, ib.created_at DESC";
 
@@ -161,9 +162,11 @@ public class InformationBoardDAO {
             throws SQLException {
         String sql = "SELECT " + COLUMNS + " FROM information_board ib " +
                 "LEFT JOIN users u ON ib.created_by = u.id WHERE ib.is_active = 1 " +
-                "AND (ib.target_audience = 'all' OR ib.target_audience = ?) " +
-                "AND (ib.target_grade IS NULL OR ib.target_grade = '' OR UPPER(ib.target_grade) = 'ALL' " +
-                "     OR UPPER(ib.target_grade) = UPPER(COALESCE(?, ''))) " +
+                "AND (LOWER(TRIM(COALESCE(ib.target_audience, 'all'))) = 'all' " +
+                "     OR LOWER(TRIM(COALESCE(ib.target_audience, 'all'))) = LOWER(TRIM(?))) " +
+                "AND (ib.target_grade IS NULL OR TRIM(ib.target_grade) = '' " +
+                "     OR UPPER(TRIM(ib.target_grade)) = 'ALL' " +
+                "     OR UPPER(TRIM(ib.target_grade)) = UPPER(TRIM(COALESCE(?, '')))) " +
                 "AND (ib.show_until IS NULL OR ib.show_until > NOW()) " +
                 "ORDER BY FIELD(ib.category, 'Info Exam', 'Jadwal GMeet', 'Tagihan & Kuota', 'Umum'), " +
                 "ib.priority DESC, ib.created_at DESC";

@@ -189,7 +189,7 @@ public class ApiService {
             InformationBoard info = new InformationBoard(title, content, infoType, createdBy);
             info.setCategory(normalizeCategory(category));
             info.setPriority(priority);
-            info.setTargetAudience(targetAudience);
+            info.setTargetAudience(normalizeTargetAudience(targetAudience));
             info.setTargetGrade(normalizeGrade(targetGrade));
             info.setShowUntil(showUntil);
 
@@ -232,6 +232,18 @@ public class ApiService {
             }
         }
         return "Umum";
+    }
+
+    /** Validasi audiens agar hanya nilai resmi yang tersimpan (all/participants/admins). */
+    public static String normalizeTargetAudience(String targetAudience) {
+        if (targetAudience == null) {
+            return "all";
+        }
+        String value = targetAudience.trim().toLowerCase();
+        if ("participants".equals(value) || "admins".equals(value) || "all".equals(value)) {
+            return value;
+        }
+        return "all";
     }
 
     /** Validasi jenjang agar hanya nilai yang dikenal yang tersimpan. */
@@ -299,7 +311,7 @@ public class ApiService {
             info.setInfoType(infoType);
             info.setCategory(normalizeCategory(category));
             info.setPriority(priority);
-            info.setTargetAudience(targetAudience);
+            info.setTargetAudience(normalizeTargetAudience(targetAudience));
             info.setTargetGrade(normalizeGrade(targetGrade));
             info.setIsActive(isActive);
             info.setShowUntil(showUntil);
