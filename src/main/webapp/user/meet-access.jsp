@@ -57,7 +57,8 @@
             </div>
             <% } else if (showLink) { %>
             <div class="alert alert-success small mb-3">
-                <i class="bi bi-unlock me-1"></i>Akses terbuka. Gunakan tombol di bawah untuk masuk ke sesi.
+                <i class="bi bi-unlock me-1"></i>Akses hari ini sudah terbuka.
+                Masuk kembali ke tautan yang sama tidak memotong poin lagi.
             </div>
             <div class="border rounded p-3 mb-3 bg-white">
                 <div class="text-muted small mb-1">Tautan sesi</div>
@@ -66,7 +67,7 @@
                     <i class="bi bi-box-arrow-up-right me-1"></i><%= ValidationUtil.sanitizeHtml(meetUrl) %>
                 </a>
                 <button class="btn btn-sm btn-outline-secondary mt-2"
-                        onclick="navigator.clipboard.writeText('<%= ValidationUtil.sanitizeHtml(meetUrl) %>'); this.textContent='Tautan tersalin';">
+                        onclick="navigator.clipboard.writeText(this.previousElementSibling.href); this.textContent='Tautan tersalin';">
                     <i class="bi bi-clipboard me-1"></i>Salin tautan
                 </button>
             </div>
@@ -78,7 +79,7 @@
             <div class="alert <%= quotaBalance >= 1 ? "alert-info" : "alert-warning" %> small">
                 <i class="bi bi-wallet2 me-1"></i>
                 Saldo poin Anda: <strong><%= quotaBalance %> / <%= QuotaService.MAX_QUOTA %></strong>.
-                Membuka sesi ini memotong <strong>1 poin</strong>.
+                Membuka tautan ini memotong <strong>1 poin sekali per hari WIB</strong>.
                 <% if (quotaBalance < 1) { %>
                 Poin habis — silakan <a href="<%= ctx %>/PaymentSettingsServlet?action=checkout" class="alert-link">beli paket kuota</a> dulu.
                 <% } %>
@@ -90,8 +91,8 @@
                 </button>
             </form>
             <p class="text-muted small mt-2 mb-0">
-                <i class="bi bi-info-circle me-1"></i>Tautan ditampilkan setelah poin terpotong, dan tetap bisa dibuka lagi
-                dari halaman ini maupun dari menu Dashboard.
+                <i class="bi bi-info-circle me-1"></i>Setelah dibuka, tautan yang sama bisa diakses lagi
+                dari halaman ini tanpa potongan tambahan sampai pergantian hari WIB.
             </p>
             <% } %>
         </div>

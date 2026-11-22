@@ -138,7 +138,7 @@
                 <% if (_navHasMeet) { %>
                 <li class="nav-item">
                     <a class="nav-link" href="<%= _navCtx %>/GMeetServlet"
-                       title="Halaman sesi Google Meet: tautan ditampilkan sebelum membuka">
+                       title="Lihat halaman sesi Google Meet">
                         <i class="bi bi-<%= _navIsMeet ? "camera-video" : "google" %> me-1"></i><%= _navIsMeet ? "Google Meet" : "Google Drive" %>
                     </a>
                 </li>
@@ -207,26 +207,22 @@
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Tutup"></button>
             </div>
             <div class="modal-body">
-                <p class="mb-3">Tautan ini adalah sesi belajar Anda. Membukanya memotong
-                    <strong>1 poin kuota</strong> yang tercatat di riwayat kuota.</p>
+                <p class="mb-3">Lihat halaman sesi tanpa biaya. Membuka tautan sesi
+                    memotong <strong>1 poin sekali per hari WIB</strong>; masuk kembali gratis.</p>
                 <div class="alert <%= _navQuota >= 1 ? "alert-success" : "alert-warning" %> mb-0">
                     <i class="bi bi-wallet2 me-1"></i>
                     Saldo poin: <strong><%= _navQuota %> / <%= _navMaxQuota %></strong>
                     <% if (_navQuota < 1) { %>
-                    — poin habis, silakan
-                    <a href="<%= _navCtx %>/PaymentSettingsServlet?action=checkout" class="alert-link">beli paket kuota</a>
-                    dulu.
+                    — jika belum membuka sesi hari ini, silakan
+                    <a href="<%= _navCtx %>/PaymentSettingsServlet?action=checkout" class="alert-link">beli paket kuota</a>.
                     <% } %>
                 </div>
             </div>
             <div class="modal-footer border-0 bg-light">
                 <button type="button" class="btn btn-outline-secondary px-4" data-bs-dismiss="modal">Batal</button>
-                <form method="post" action="<%= _navCtx %>/GMeetServlet" class="m-0">
-                    <input type="hidden" name="csrfToken" value="<%= session.getAttribute("csrfToken") %>">
-                    <button type="submit" class="btn btn-primary px-4" <%= _navQuota < 1 ? "disabled" : "" %>>
-                        <i class="bi bi-box-arrow-up-right me-1"></i>Buka (1 Poin)
-                    </button>
-                </form>
+                <a href="<%= _navCtx %>/GMeetServlet" class="btn btn-primary px-4">
+                    <i class="bi bi-box-arrow-up-right me-1"></i>Lihat Sesi
+                </a>
             </div>
         </div>
     </div>
