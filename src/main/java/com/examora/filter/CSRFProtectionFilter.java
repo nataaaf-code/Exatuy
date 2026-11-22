@@ -38,8 +38,10 @@ public class CSRFProtectionFilter implements Filter {
         if ("POST".equalsIgnoreCase(method) || "PUT".equalsIgnoreCase(method) ||
             "DELETE".equalsIgnoreCase(method) || "PATCH".equalsIgnoreCase(method)) {
 
-            // Skip CSRF for login/register (no session yet)
-            if (path.contains("/LoginServlet") || path.contains("/RegisterServlet")) {
+            // Skip CSRF for login/register (no session yet) and the payment webhook
+            // (server-to-server, authenticated by X-Webhook-Token)
+            if (path.contains("/LoginServlet") || path.contains("/RegisterServlet")
+                    || path.contains("/SumopodWebhookServlet")) {
                 chain.doFilter(request, response);
                 return;
             }

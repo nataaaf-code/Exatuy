@@ -2,6 +2,7 @@ package com.examora.service;
 
 import com.examora.dao.QuotaDAO;
 
+import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.Instant;
 import java.time.ZoneId;
@@ -68,6 +69,16 @@ public class QuotaService {
     public int topUp(int userId, int points, String orderId) throws ServiceException {
         validatePoints(points);
         return change(userId, points, "topup", orderId);
+    }
+
+    /**
+     * Tambah poin pembayaran yang sudah lunas di dalam transaksi DB milik pemanggil.
+     * Saldo dibatasi sampai 12, jadi pembayaran yang sah tidak pernah gagal dikreditkan.
+     *
+     * @return jumlah poin yang benar-benar ditambahkan
+     */
+    public int creditPurchase(Connection conn, int userId, int points, String orderId) throws SQLException {
+        return quotaDAO.creditCapped(conn, userId, points, MAX_QUOTA, orderId, monthKey(Instant.now()));
     }
 
     /**

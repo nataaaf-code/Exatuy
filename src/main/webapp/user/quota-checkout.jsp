@@ -17,6 +17,8 @@
     Integer currentBalanceAttr = (Integer) request.getAttribute("currentBalance");
     Integer maxQuotaAttr = (Integer) request.getAttribute("maxQuota");
     Integer remainingCapAttr = (Integer) request.getAttribute("remainingCapacity");
+    Integer pendingPointsAttr = (Integer) request.getAttribute("pendingPoints");
+    int pendingPoints = pendingPointsAttr != null ? pendingPointsAttr : 0;
     @SuppressWarnings("unchecked")
     List<CashInTransaction> transactions = (List<CashInTransaction>) request.getAttribute("transactions");
     if (transactions == null) transactions = java.util.Collections.emptyList();
@@ -125,6 +127,14 @@
                 <p class="mb-0 small">
                     Pengajar belum mengaktifkan kunci pembayaran online. Silakan hubungi pengajar Bimbel Mentari untuk informasi pengisian kuota belajar.
                 </p>
+            </div>
+        </div>
+        <% } else if (remainingCapacity <= 0 && pendingPoints > 0) { %>
+        <div class="alert alert-warning d-flex align-items-center gap-3 mb-4">
+            <i class="bi bi-hourglass-split fs-3"></i>
+            <div>
+                <h6 class="fw-bold mb-1">Masih Ada Tagihan <%= pendingPoints %> Poin yang Belum Dibayar</h6>
+                <p class="mb-0 small">Selesaikan pembayaran lewat tabel riwayat di bawah, atau tunggu sampai tagihan itu kedaluwarsa untuk membuat pesanan baru.</p>
             </div>
         </div>
         <% } else if (remainingCapacity <= 0) { %>
@@ -270,7 +280,13 @@
                         <tbody>
                             <% for (CashInTransaction tx : transactions) { %>
                             <tr>
-                                <td class="font-monospace fw-bold small"><%= ValidationUtil.sanitizeHtml(tx.getOrderId()) %></td>
+                                <td class="font-monospace fw-bold small">
+                                    <% if ("pending".equalsIgnoreCase(tx.getStatus())) { %>
+                                    <a href="<%= request.getContextPath() %>/PaymentSettingsServlet?action=pay&orderId=<%= java.net.URLEncoder.encode(tx.getOrderId(), "UTF-8") %>"><%= ValidationUtil.sanitizeHtml(tx.getOrderId()) %></a>
+                                    <% } else { %>
+                                    <%= ValidationUtil.sanitizeHtml(tx.getOrderId()) %>
+                                    <% } %>
+                                </td>
                                 <td class="text-center"><span class="badge bg-primary bg-opacity-10 text-primary">+<%= tx.getPointsPurchased() %> Poin</span></td>
                                 <td class="text-end fw-bold">Rp <%= String.format("%,.0f", tx.getAmount()) %></td>
                                 <td class="text-center small"><%= ValidationUtil.sanitizeHtml(tx.getPaymentMethod() != null ? tx.getPaymentMethod() : "QRIS") %></td>
