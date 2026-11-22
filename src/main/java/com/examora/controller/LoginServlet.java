@@ -3,6 +3,7 @@ package com.examora.controller;
 import com.examora.dao.SettingsDAO;
 import com.examora.model.User;
 import com.examora.service.AuditService;
+import com.examora.service.QuotaService;
 import com.examora.service.UserService;
 import com.examora.util.RateLimiter;
 
@@ -22,12 +23,14 @@ public class LoginServlet extends HttpServlet {
     private UserService userService;
     private AuditService auditService;
     private SettingsDAO settingsDAO;
+    private QuotaService quotaService;
 
     @Override
     public void init() throws ServletException {
         userService = new UserService();
         auditService = new AuditService();
         settingsDAO = new SettingsDAO();
+        quotaService = new QuotaService();
     }
 
     @Override
@@ -108,6 +111,15 @@ public class LoginServlet extends HttpServlet {
             // Reset rate limit on successful login
             RateLimiter.resetAttempts(email);
             RateLimiter.resetAttempts(clientIp);
+
+            // Fail-safe reset kuota bulanan bila scheduler terlewat (mis. server tidur di hosting gratis)
+            if (user.isPeserta()) {
+                try {
+                    quotaService.getBalance(user.getId());
+                } catch (QuotaService.ServiceException quotaEx) {
+                    System.err.println("Warning: Failed to check monthly quota reset: " + quotaEx.getMessage());
+                }
+            }
 
             // Audit log for successful login
             try {

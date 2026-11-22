@@ -2,6 +2,7 @@ package com.examora.scheduler;
 
 import com.examora.dao.AttendanceDAO;
 import com.examora.dao.QuizDAO;
+import com.examora.service.QuotaService;
 
 import jakarta.servlet.ServletContextEvent;
 import jakarta.servlet.ServletContextListener;
@@ -41,6 +42,16 @@ public class AttendanceSchedulerListener implements ServletContextListener {
                 }
             } catch (Exception e) {
                 LOGGER.log(Level.WARNING, "Quiz auto-publish failed", e);
+            }
+
+            try {
+                // Idempoten: hanya mereset siswa yang periode saldonya belum bulan berjalan (WIB)
+                int reset = new QuotaService().resetForCurrentMonth();
+                if (reset > 0) {
+                    LOGGER.info("Monthly quota reset: " + reset + " student(s)");
+                }
+            } catch (Exception e) {
+                LOGGER.log(Level.WARNING, "Monthly quota reset failed", e);
             }
         }, 0, 1, TimeUnit.MINUTES);
 
