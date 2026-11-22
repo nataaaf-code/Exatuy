@@ -20,6 +20,20 @@ DELIMITER ;
 CALL add_quota_wallet_columns();
 DROP PROCEDURE IF EXISTS add_quota_wallet_columns;
 
+-- Saldo selalu berada di rentang 0-12 (check constraint, PRD #30)
+DELIMITER //
+DROP PROCEDURE IF EXISTS add_quota_balance_check //
+CREATE PROCEDURE add_quota_balance_check()
+BEGIN
+    IF NOT EXISTS (SELECT * FROM information_schema.table_constraints WHERE constraint_schema = DATABASE() AND table_name = 'users' AND constraint_name = 'chk_users_quota_balance') THEN
+        UPDATE users SET quota_balance = LEAST(GREATEST(quota_balance, 0), 12) WHERE quota_balance < 0 OR quota_balance > 12;
+        ALTER TABLE users ADD CONSTRAINT chk_users_quota_balance CHECK (quota_balance BETWEEN 0 AND 12);
+    END IF;
+END //
+DELIMITER ;
+CALL add_quota_balance_check();
+DROP PROCEDURE IF EXISTS add_quota_balance_check;
+
 CREATE TABLE IF NOT EXISTS payment_settings (
     id INT PRIMARY KEY,
     sumopod_api_key_enc TEXT DEFAULT NULL COMMENT 'API Key Sumopod terenkripsi AES-256-GCM',
