@@ -2,6 +2,7 @@ package com.examora.scheduler;
 
 import com.examora.dao.AttendanceDAO;
 import com.examora.dao.QuizDAO;
+import com.examora.service.PaymentGatewayService;
 import com.examora.service.QuotaService;
 
 import jakarta.servlet.ServletContextEvent;
@@ -64,6 +65,16 @@ public class AttendanceSchedulerListener implements ServletContextListener {
                 }
             } catch (Exception e) {
                 LOGGER.log(Level.WARNING, "Monthly quota reset failed", e);
+            }
+
+            try {
+                // Tagihan kuota yang lewat batas waktu bayar ditandai gagal
+                int expired = new PaymentGatewayService().expireStaleOrders();
+                if (expired > 0) {
+                    LOGGER.info("Expired quota orders: " + expired);
+                }
+            } catch (Exception e) {
+                LOGGER.log(Level.WARNING, "Quota order expiry failed", e);
             }
 
             lastRunAt = java.time.Instant.now();

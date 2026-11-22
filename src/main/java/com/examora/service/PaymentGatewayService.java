@@ -4,6 +4,8 @@ import com.examora.dao.PaymentSettingDAO;
 import com.examora.model.PaymentSetting;
 import com.examora.util.CryptoUtil;
 import com.examora.util.DBUtil;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -27,13 +29,15 @@ import java.util.Random;
  * maupun UI (label yang tampil ke siswa hanya "Pembayaran Online"). Kredensial
  * vendor tetap dibaca dari tabel `payment_settings` (terenkripsi AES-256).
  *
- * Dua mode:
- *  - **Live**: bila API key gateway sudah diisi admin, kode memanggil endpoint
- *    gateway (`SUMOPOD_BASE_URL`, default sandbox) untuk memperoleh QR/VA asli.
- *  - **Simulasi**: bila API key belum diisi atau panggilan gagal, layanan membuat
- *    payload QRIS yang valid secara format + nomor VA internal, menandai
+ * Dua jenis tagihan:
+ *  - **Asli**: bila API key gateway sudah diisi admin, kode memanggil endpoint
+ *    gateway (sandbox atau live sesuai pengaturan, bisa ditimpa `SUMOPOD_BASE_URL`)
+ *    untuk memperoleh tautan bayar dan payload QRIS. Tagihan ini hanya dilunasi
+ *    lewat notifikasi webhook dari gateway.
+ *  - **Simulasi**: hanya pada mode sandbox, bila panggilan gateway gagal, layanan
+ *    membuat payload QRIS yang valid secara format + nomor VA internal, menandai
  *    transaksi `is_simulated = 1`, dan menyediakan tombol "sudah dibayar" untuk
- *    demo. Ini yang membuat alur checkout tetap bisa diuji tanpa kredensial.
+ *    demo. Pada mode live, kegagalan gateway membuat pesanan gagal.
  */
 public class PaymentGatewayService {
 
@@ -42,6 +46,9 @@ public class PaymentGatewayService {
 
     /** Prefix Virtual Account internal (bukan kode bank asli). */
     private static final String VA_PREFIX = "8808";
+
+    private static final java.util.logging.Logger LOGGER =
+            java.util.logging.Logger.getLogger(PaymentGatewayService.class.getName());
 
     private final PaymentSettingDAO paymentSettingDAO = new PaymentSettingDAO();
     private final QuotaService quotaService = new QuotaService();
@@ -62,8 +69,10 @@ public class PaymentGatewayService {
 
     /**
      * Buat tagihan untuk sebuah order yang sudah tercatat di tabel `transactions`.
+     *
+     * @throws ServiceException mode live aktif tetapi gateway tidak bisa membuat tagihan
      */
-    public Charge createCharge(String orderId, BigDecimal amount, String method) {
+    public Charge createCharge(String orderId, BigDecimal amount, String method) throws ServiceException {
         String paymentMethod = (method == null || method.isBlank()) ? "QRIS"
                 : ("va".equalsIgnoreCase(method) || method.toLowerCase().contains("virtual")
                     ? "Virtual Account" : "QRIS");
@@ -86,8 +95,12 @@ public class PaymentGatewayService {
             liveAttempted = true;
             Charge live = callGateway(setting, charge);
             if (live != null) {
-                persist(charge, live);
+                persist(live, live);
                 return live;
+            }
+            if (setting.isLiveMode()) {
+                // Mode live tidak boleh jatuh ke tagihan simulasi yang tidak bisa dibayar.
+                throw new ServiceException("Gerbang pembayaran tidak dapat membuat tagihan untuk " + orderId);
             }
         }
 
@@ -112,20 +125,18 @@ public class PaymentGatewayService {
      * @return true bila order sekarang berstatus completed
      */
     public boolean settle(String orderId) throws ServiceException {
-        Integer studentId = null;
-        int points = 0;
-        boolean alreadySettled;
-
         try (Connection conn = DBUtil.getConnection()) {
             conn.setAutoCommit(false);
             try {
+                int studentId;
+                int points;
+                boolean alreadySettled;
                 String sql = "SELECT student_id, points_purchased, status, settled_at "
                         + "FROM transactions WHERE order_id = ? FOR UPDATE";
                 try (PreparedStatement stmt = conn.prepareStatement(sql)) {
                     stmt.setString(1, orderId);
                     try (ResultSet rs = stmt.executeQuery()) {
                         if (!rs.next()) {
-                            conn.rollback();
                             throw new ServiceException("Pesanan tidak ditemukan: " + orderId);
                         }
                         studentId = rs.getInt("student_id");
@@ -135,47 +146,122 @@ public class PaymentGatewayService {
                     }
                 }
 
+                // Status lunas dan penambahan poin berada dalam satu transaksi DB, sehingga
+                // notifikasi ganda tidak menambah poin dua kali dan poin tidak bisa tertinggal.
                 if (!alreadySettled) {
                     try (PreparedStatement stmt = conn.prepareStatement(
                             "UPDATE transactions SET status = 'completed', paid_at = NOW(), settled_at = NOW() "
-                                    + "WHERE order_id = ? AND settled_at IS NULL")) {
+                                    + "WHERE order_id = ?")) {
                         stmt.setString(1, orderId);
                         stmt.executeUpdate();
                     }
+                    int credited = quotaService.creditPurchase(conn, studentId, points, orderId);
+                    if (credited < points) {
+                        LOGGER.warning("Pesanan " + orderId + " lunas, tetapi hanya " + credited + " dari " + points
+                                + " poin yang ditambahkan karena saldo dibatasi " + QuotaService.MAX_QUOTA + " poin");
+                    }
                 }
                 conn.commit();
+                return true;
             } catch (Exception e) {
                 conn.rollback();
                 throw e;
+            } finally {
+                conn.setAutoCommit(true);
             }
         } catch (ServiceException e) {
             throw e;
         } catch (Exception e) {
             throw new ServiceException("Gagal menyelesaikan pembayaran: " + e.getMessage(), e);
         }
+    }
 
-        if (alreadySettled) {
+    /**
+     * Tandai order gagal/kedaluwarsa. Order yang sudah lunas tidak pernah diturunkan.
+     *
+     * @return true bila status berubah dari pending menjadi failed
+     */
+    public boolean markFailed(String orderId) throws ServiceException {
+        return update("UPDATE transactions SET status = 'failed' WHERE order_id = ? AND status = 'pending'", orderId) > 0;
+    }
+
+    /**
+     * Jumlah poin pada tagihan siswa yang masih menunggu pembayaran.
+     */
+    public int pendingPoints(int studentId) throws ServiceException {
+        try (Connection conn = DBUtil.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(
+                     "SELECT COALESCE(SUM(points_purchased), 0) FROM transactions "
+                             + "WHERE student_id = ? AND status = 'pending'")) {
+            stmt.setInt(1, studentId);
+            try (ResultSet rs = stmt.executeQuery()) {
+                return rs.next() ? rs.getInt(1) : 0;
+            }
+        } catch (Exception e) {
+            throw new ServiceException("Gagal memuat tagihan: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Tandai gagal semua tagihan pending yang sudah lewat batas waktu bayar.
+     */
+    public int expireStaleOrders() throws ServiceException {
+        return update("UPDATE transactions SET status = 'failed' WHERE status = 'pending' "
+                        + "AND expires_at IS NOT NULL AND expires_at < ?",
+                java.sql.Timestamp.valueOf(LocalDateTime.now(ZoneId.of("Asia/Jakarta"))));
+    }
+
+    /** Order id untuk ID pembayaran dari gateway, atau null bila tidak dikenal. */
+    public String findOrderIdByPaymentId(String paymentId) throws ServiceException {
+        try (Connection conn = DBUtil.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(
+                     "SELECT order_id FROM transactions WHERE sumopod_payment_id = ?")) {
+            stmt.setString(1, paymentId);
+            try (ResultSet rs = stmt.executeQuery()) {
+                return rs.next() ? rs.getString(1) : null;
+            }
+        } catch (Exception e) {
+            throw new ServiceException("Gagal mencari tagihan: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Tombol "Saya sudah membayar" hanya untuk tagihan simulasi pada mode sandbox (demo).
+     * Tagihan asli hanya bisa dilunasi lewat notifikasi dari gateway.
+     */
+    public static boolean canSelfConfirm(boolean simulated, boolean liveMode) {
+        return simulated && !liveMode;
+    }
+
+    public boolean isLiveMode() {
+        try {
+            PaymentSetting setting = paymentSettingDAO.getSettings();
+            return setting != null && setting.isLiveMode();
+        } catch (Exception e) {
             return true;
         }
+    }
 
-        // Kredit poin setelah status ter-commit (validasi ≤ 12 poin ada di QuotaService).
-        try {
-            quotaService.topUp(studentId, points, orderId);
-        } catch (QuotaService.ServiceException e) {
-            throw new ServiceException("Pembayaran diterima, tetapi poin gagal ditambahkan: " + e.getMessage(), e);
+    private int update(String sql, Object param) throws ServiceException {
+        try (Connection conn = DBUtil.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setObject(1, param);
+            return stmt.executeUpdate();
+        } catch (Exception e) {
+            throw new ServiceException("Gagal memperbarui tagihan: " + e.getMessage(), e);
         }
-        return true;
     }
 
     /**
      * Ambil detail tagihan untuk ditampilkan di halaman pembayaran.
-     * Urutan array: orderId, method, amount, qrString, vaNumber, status, expiresAt, isSimulated
+     * Urutan array: orderId, method, amount, qrString, vaNumber, status, expiresAt, isSimulated,
+     * studentId, paymentLinkUrl
      */
     public Object[] findOrder(String orderId) throws ServiceException {
         try (Connection conn = DBUtil.getConnection();
              PreparedStatement stmt = conn.prepareStatement(
-                     "SELECT order_id, payment_method, amount, qr_string, va_number, status, expires_at, is_simulated "
-                             + "FROM transactions WHERE order_id = ?")) {
+                     "SELECT order_id, payment_method, amount, qr_string, va_number, status, expires_at, is_simulated, "
+                             + "student_id, payment_link_url FROM transactions WHERE order_id = ?")) {
             stmt.setString(1, orderId);
             try (ResultSet rs = stmt.executeQuery()) {
                 if (!rs.next()) {
@@ -190,7 +276,9 @@ public class PaymentGatewayService {
                         rs.getString("va_number"),
                         rs.getString("status"),
                         expires == null ? null : expires.toLocalDateTime(),
-                        rs.getBoolean("is_simulated")
+                        rs.getBoolean("is_simulated"),
+                        rs.getInt("student_id"),
+                        rs.getString("payment_link_url")
                 };
             }
         } catch (Exception e) {
@@ -220,57 +308,89 @@ public class PaymentGatewayService {
     private Charge callGateway(PaymentSetting setting, Charge charge) {
         try {
             String apiKey = CryptoUtil.decrypt(setting.getSumopodApiKeyEnc());
-            String baseUrl = System.getenv().getOrDefault("SUMOPOD_BASE_URL",
-                    "https://api-pay-sandbox.sumopod.com/api/v1");
-
-            String body = String.format(
-                    "{\"order_id\":\"%s\",\"amount\":%s,\"method\":\"%s\",\"description\":\"Pembelian kuota belajar\"}",
-                    charge.orderId, charge.amount.setScale(0, RoundingMode.HALF_UP).toPlainString(),
-                    "Virtual Account".equals(charge.paymentMethod) ? "VA" : "QRIS");
 
             HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
             HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(baseUrl + "/payments"))
+                    .uri(URI.create(gatewayBaseUrl(System.getenv("SUMOPOD_BASE_URL"), setting.isLiveMode()) + "/payments"))
                     .timeout(Duration.ofSeconds(12))
                     .header("Content-Type", "application/json")
                     .header("X-Api-Key", apiKey)
-                    .POST(HttpRequest.BodyPublishers.ofString(body))
+                    .POST(HttpRequest.BodyPublishers.ofString(buildPaymentRequest(charge.orderId, charge.amount)))
                     .build();
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                LOGGER.warning("Gateway menolak pembuatan tagihan " + charge.orderId + ": HTTP " + response.statusCode());
                 return null;
             }
-            String json = response.body();
-            Charge live = new Charge();
-            live.orderId = charge.orderId;
-            live.amount = charge.amount;
-            live.paymentMethod = charge.paymentMethod;
-            live.expiresAt = charge.expiresAt;
-            live.qrString = extract(json, "qr_string", "qr_code", "qris");
-            live.vaNumber = extract(json, "va_number", "virtual_account", "account_number");
-            live.paymentUrl = extract(json, "payment_link_url", "payment_url", "url");
-            live.providerRef = extract(json, "id", "payment_id", "reference");
-            live.simulated = false;
-            if (live.qrString == null && live.vaNumber == null && live.paymentUrl == null) {
-                return null; // respons tidak berisi instruksi bayar -> pakai simulasi
-            }
-            return live;
+            return parsePaymentResponse(charge, response.body());
         } catch (Exception e) {
+            LOGGER.warning("Gateway tidak dapat dihubungi untuk " + charge.orderId + ": " + e.getClass().getSimpleName());
             return null;
         }
     }
 
-    /** Ekstraksi nilai string pertama yang ditemukan dari JSON sederhana. */
-    private String extract(String json, String... keys) {
-        if (json == null) {
+    /** SUMOPOD_BASE_URL menimpa alamat bawaan; tanpa itu alamat mengikuti mode sandbox/live. */
+    static String gatewayBaseUrl(String override, boolean liveMode) {
+        if (override != null && !override.isBlank()) {
+            return override.trim();
+        }
+        return liveMode ? "https://api-pay.sumopod.com/api/v1" : "https://api-pay-sandbox.sumopod.com/api/v1";
+    }
+
+    /** Body POST /payments. Gateway saat ini hanya mendukung QRIS. */
+    static String buildPaymentRequest(String orderId, BigDecimal amount) {
+        JsonObject body = new JsonObject();
+        body.addProperty("order_id", orderId);
+        body.addProperty("amount", amount.setScale(0, RoundingMode.HALF_UP).longValueExact());
+        body.addProperty("currency", "IDR");
+        body.addProperty("payment_method_type_code", "QRIS");
+        return body.toString();
+    }
+
+    /**
+     * Baca respons POST /payments: payment_id, payment_link_url, payment_code (payload QRIS), expires_at.
+     *
+     * @return null bila respons tidak berisi cara membayar
+     */
+    static Charge parsePaymentResponse(Charge charge, String json) {
+        JsonObject root;
+        try {
+            root = JsonParser.parseString(json).getAsJsonObject();
+        } catch (Exception e) {
             return null;
         }
+        JsonObject data = root.has("data") && root.get("data").isJsonObject() ? root.getAsJsonObject("data") : root;
+
+        Charge live = new Charge();
+        live.orderId = charge.orderId;
+        live.amount = charge.amount;
+        live.paymentMethod = "QRIS";
+        live.expiresAt = charge.expiresAt;
+        live.qrString = text(data, "payment_code", "qr_string");
+        live.paymentUrl = text(data, "payment_link_url", "payment_url");
+        live.providerRef = text(data, "payment_id", "id");
+        live.simulated = false;
+        if (live.paymentUrl != null && !live.paymentUrl.startsWith("https://")) {
+            live.paymentUrl = null;
+        }
+        if (live.qrString == null && live.paymentUrl == null) {
+            return null;
+        }
+        try {
+            live.expiresAt = LocalDateTime.ofInstant(Instant.parse(text(data, "expires_at")), ZoneId.of("Asia/Jakarta"));
+        } catch (Exception e) {
+            // gateway tidak mengirim expires_at yang bisa dibaca: pakai batas waktu bawaan
+        }
+        return live;
+    }
+
+    private static String text(JsonObject json, String... keys) {
         for (String key : keys) {
-            java.util.regex.Matcher m = java.util.regex.Pattern
-                    .compile("\"" + key + "\"\\s*:\\s*\"([^\"]+)\"")
-                    .matcher(json);
-            if (m.find()) {
-                return m.group(1);
+            if (json.has(key) && json.get(key).isJsonPrimitive()) {
+                String value = json.get(key).getAsString();
+                if (!value.isBlank()) {
+                    return value;
+                }
             }
         }
         return null;

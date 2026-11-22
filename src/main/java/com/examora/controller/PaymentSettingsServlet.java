@@ -6,6 +6,8 @@ import com.examora.dao.UserDAO;
 import com.examora.model.CashInTransaction;
 import com.examora.model.PaymentSetting;
 import com.examora.model.User;
+import com.examora.service.PaymentGatewayService;
+import com.examora.service.QuotaService;
 import com.examora.util.CryptoUtil;
 
 import jakarta.servlet.ServletException;
@@ -20,7 +22,11 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * PaymentSettingsServlet - Handles:
@@ -29,10 +35,14 @@ import java.util.UUID;
  */
 @WebServlet("/PaymentSettingsServlet")
 public class PaymentSettingsServlet extends HttpServlet {
+    private static final Logger LOGGER = Logger.getLogger(PaymentSettingsServlet.class.getName());
+    private static final Map<Integer, Object> ORDER_LOCKS = new ConcurrentHashMap<>();
+
     private PaymentSettingDAO paymentSettingDAO;
     private CashInTransactionDAO transactionDAO;
     private UserDAO userDAO;
     private com.examora.service.PaymentGatewayService paymentGatewayService;
+    private QuotaService quotaService;
 
     @Override
     public void init() throws ServletException {
@@ -40,6 +50,7 @@ public class PaymentSettingsServlet extends HttpServlet {
         transactionDAO = new CashInTransactionDAO();
         userDAO = new UserDAO();
         paymentGatewayService = new com.examora.service.PaymentGatewayService();
+        quotaService = new QuotaService();
     }
 
     @Override
@@ -174,8 +185,13 @@ public class PaymentSettingsServlet extends HttpServlet {
 
             paymentSettingDAO.saveSettings(updated);
             session.setAttribute("flashSuccess", "Pengaturan pembayaran Sumopod berhasil disimpan & API Key terenkripsi AES-256.");
-        } catch (Exception e) {
+        } catch (NumberFormatException e) {
+            session.setAttribute("flashError", "Gagal menyimpan pengaturan pembayaran: harga dan batas kuota harus berupa angka.");
+        } catch (IllegalArgumentException e) {
             session.setAttribute("flashError", "Gagal menyimpan pengaturan pembayaran: " + e.getMessage());
+        } catch (Exception e) {
+            LOGGER.log(Level.WARNING, "Gagal menyimpan pengaturan pembayaran", e);
+            session.setAttribute("flashError", "Gagal menyimpan pengaturan pembayaran. Silakan coba lagi.");
         }
 
         response.sendRedirect(request.getContextPath() + "/PaymentSettingsServlet");
@@ -192,14 +208,26 @@ public class PaymentSettingsServlet extends HttpServlet {
         } catch (Exception ignored) {}
 
         PaymentSetting setting = paymentSettingDAO.getSettings();
+
+        // Saldo dan tagihan pending dibaca dari sumber yang sama dengan validasi pesanan
+        int currentBalance = currentUser.getQuotaBalance();
+        int pendingPoints = 0;
+        try {
+            paymentGatewayService.expireStaleOrders();
+            currentBalance = quotaService.getBalance(currentUser.getId());
+            currentUser.setQuotaBalance(currentBalance);
+            pendingPoints = paymentGatewayService.pendingPoints(currentUser.getId());
+        } catch (Exception e) {
+            LOGGER.log(Level.WARNING, "Gagal memuat saldo kuota untuk checkout", e);
+        }
         List<CashInTransaction> history = transactionDAO.findByStudentId(currentUser.getId());
 
-        int currentBalance = currentUser.getQuotaBalance();
         int maxQuota = setting.getMaxQuotaPerMonth();
-        int remainingCapacity = Math.max(0, maxQuota - currentBalance);
+        int remainingCapacity = Math.max(0, maxQuota - currentBalance - pendingPoints);
 
         request.setAttribute("paymentSetting", setting);
         request.setAttribute("currentBalance", currentBalance);
+        request.setAttribute("pendingPoints", pendingPoints);
         request.setAttribute("maxQuota", maxQuota);
         request.setAttribute("remainingCapacity", remainingCapacity);
         request.setAttribute("transactions", history);
@@ -210,6 +238,7 @@ public class PaymentSettingsServlet extends HttpServlet {
     private void handleCreateCheckoutOrder(HttpServletRequest request, HttpServletResponse response, User currentUser)
             throws IOException {
         HttpSession session = request.getSession();
+        String orderId = null;
         try {
             User freshUser = userDAO.findById(currentUser.getId());
             if (freshUser != null) {
@@ -224,48 +253,41 @@ public class PaymentSettingsServlet extends HttpServlet {
                 return;
             }
 
-            int points = Integer.parseInt(request.getParameter("points"));
+            int points = parsePoints(request.getParameter("points"));
             String paymentMethod = request.getParameter("paymentMethod");
             if (paymentMethod == null || paymentMethod.trim().isEmpty()) {
                 paymentMethod = "QRIS";
             }
 
-            int maxQuota = setting.getMaxQuotaPerMonth();
-            int currentBalance = currentUser.getQuotaBalance();
-            if (points < 1) {
-                throw new IllegalArgumentException("Jumlah pembelian minimal 1 poin.");
-            }
-            if (currentBalance + points > maxQuota) {
-                int maxAllowed = Math.max(0, maxQuota - currentBalance);
-                throw new IllegalArgumentException(
-                    "Pembelian melebihi batas maksimal " + maxQuota + " poin/bulan. " +
-                    "Saldo Anda saat ini " + currentBalance + " poin, maksimal top-up: " + maxAllowed + " poin."
-                );
-            }
-
             BigDecimal amount = setting.calculatePackagePrice(points);
-            String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
-            String shortRand = UUID.randomUUID().toString().substring(0, 6).toUpperCase();
-            String orderId = "INV-EXA-" + timestamp + "-" + shortRand;
 
-            CashInTransaction tx = new CashInTransaction();
-            tx.setOrderId(orderId);
-            tx.setStudentId(currentUser.getId());
-            tx.setPointsPurchased(points);
-            tx.setAmount(amount);
-            tx.setStatus("pending");
-            tx.setPaymentMethod(paymentMethod.trim());
-            tx.setSumopodPaymentId((setting.isLiveMode() ? "sp_live_" : "sp_sbx_") + shortRand.toLowerCase());
-            tx.setPaymentLinkUrl("https://sumopod.com/pay/" + orderId);
+            // Validasi dan pencatatan pesanan diproses satu per satu untuk tiap siswa, supaya
+            // dua pesanan yang dibuat bersamaan tidak sama-sama lolos dari batas saldo.
+            synchronized (ORDER_LOCKS.computeIfAbsent(currentUser.getId(), id -> new Object())) {
+                paymentGatewayService.expireStaleOrders();
+                int currentBalance = quotaService.getBalance(currentUser.getId());
+                currentUser.setQuotaBalance(currentBalance);
+                checkTopUpAllowed(currentBalance, paymentGatewayService.pendingPoints(currentUser.getId()),
+                        points, setting.getMaxQuotaPerMonth());
 
-            transactionDAO.create(tx);
+                String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
+                String shortRand = UUID.randomUUID().toString().substring(0, 6).toUpperCase();
+                orderId = "INV-EXA-" + timestamp + "-" + shortRand;
 
-            // Buat instruksi bayar (QRIS / Virtual Account). Bila kredensial gateway
-            // belum diisi admin, layanan memakai mode simulasi sehingga siswa tetap
-            // memperoleh QR/VA dan bisa menyelesaikan pembayaran.
-            com.examora.service.PaymentGatewayService.Charge charge =
-                    paymentGatewayService.createCharge(orderId, amount, paymentMethod);
-            tx.setPaymentLinkUrl(charge.paymentUrl);
+                CashInTransaction tx = new CashInTransaction();
+                tx.setOrderId(orderId);
+                tx.setStudentId(currentUser.getId());
+                tx.setPointsPurchased(points);
+                tx.setAmount(amount);
+                tx.setStatus("pending");
+                tx.setPaymentMethod(paymentMethod.trim());
+
+                transactionDAO.create(tx);
+            }
+
+            // Buat instruksi bayar. Pada mode sandbox, bila gateway tidak bisa dihubungi,
+            // layanan memakai tagihan simulasi sehingga alur tetap bisa didemokan.
+            paymentGatewayService.createCharge(orderId, amount, paymentMethod);
 
             session.setAttribute("flashSuccess",
                 "Pesanan " + orderId + " dibuat. Selesaikan pembayaran Rp "
@@ -273,11 +295,51 @@ public class PaymentSettingsServlet extends HttpServlet {
             response.sendRedirect(request.getContextPath()
                     + "/PaymentSettingsServlet?action=pay&orderId=" + java.net.URLEncoder.encode(orderId, "UTF-8"));
             return;
-        } catch (Exception e) {
+        } catch (IllegalArgumentException e) {
             session.setAttribute("flashError", "Gagal membuat pesanan kuota: " + e.getMessage());
+        } catch (PaymentGatewayService.ServiceException e) {
+            LOGGER.log(Level.WARNING, "Tagihan tidak dapat dibuat", e);
+            if (orderId != null) {
+                try {
+                    paymentGatewayService.markFailed(orderId);
+                } catch (PaymentGatewayService.ServiceException ignored) {
+                    // tagihan akan ditandai gagal oleh penjadwal saat kedaluwarsa
+                }
+            }
+            session.setAttribute("flashError",
+                "Pembayaran online sedang tidak dapat dihubungi. Silakan coba lagi nanti atau hubungi pengajar.");
+        } catch (Exception e) {
+            LOGGER.log(Level.WARNING, "Gagal membuat pesanan kuota", e);
+            session.setAttribute("flashError", "Gagal membuat pesanan kuota. Silakan coba lagi.");
         }
 
         response.sendRedirect(request.getContextPath() + "/PaymentSettingsServlet?action=checkout");
+    }
+
+    static int parsePoints(String value) {
+        try {
+            return Integer.parseInt(value == null ? "" : value.trim());
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("Jumlah poin harus berupa angka.");
+        }
+    }
+
+    /**
+     * Saldo + tagihan yang masih menunggu pembayaran + pembelian baru tidak boleh melebihi batas.
+     */
+    static void checkTopUpAllowed(int balance, int pendingPoints, int points, int maxQuota) {
+        if (points < 1) {
+            throw new IllegalArgumentException("Jumlah pembelian minimal 1 poin.");
+        }
+        if (balance + pendingPoints + points > maxQuota) {
+            int maxAllowed = Math.max(0, maxQuota - balance - pendingPoints);
+            throw new IllegalArgumentException(
+                "Pembelian melebihi batas maksimal " + maxQuota + " poin/bulan. " +
+                "Saldo Anda saat ini " + balance + " poin" +
+                (pendingPoints > 0 ? " dan ada tagihan " + pendingPoints + " poin yang belum dibayar" : "") +
+                ", maksimal top-up: " + maxAllowed + " poin."
+            );
+        }
     }
 
     /**
@@ -292,8 +354,11 @@ public class PaymentSettingsServlet extends HttpServlet {
         }
 
         try {
+            paymentGatewayService.expireStaleOrders();
             Object[] order = paymentGatewayService.findOrder(orderId);
-            if (order == null || !String.valueOf(order[0]).equals(orderId)) {
+            boolean isOwner = order != null && ownsOrder(order, currentUser);
+            boolean isAdminViewer = currentUser.isAdmin() || "owner".equals(currentUser.getRole());
+            if (order == null || !String.valueOf(order[0]).equals(orderId) || (!isOwner && !isAdminViewer)) {
                 request.getSession().setAttribute("flashError", "Pesanan tidak ditemukan.");
                 response.sendRedirect(request.getContextPath() + "/PaymentSettingsServlet?action=checkout");
                 return;
@@ -304,16 +369,26 @@ public class PaymentSettingsServlet extends HttpServlet {
             request.setAttribute("qrString", order[3]);
             request.setAttribute("vaNumber", order[4]);
             request.setAttribute("status", order[5]);
+            request.setAttribute("expiresAt", order[6]);
             request.setAttribute("simulated", order[7]);
+            request.setAttribute("paymentUrl", order[9]);
+            request.setAttribute("canSelfConfirm", isOwner && PaymentGatewayService.canSelfConfirm(
+                    Boolean.TRUE.equals(order[7]), paymentGatewayService.isLiveMode()));
             request.getRequestDispatcher("/user/payment-pay.jsp").forward(request, response);
         } catch (Exception e) {
-            request.getSession().setAttribute("flashError", "Gagal memuat tagihan: " + e.getMessage());
+            LOGGER.log(Level.WARNING, "Gagal memuat tagihan", e);
+            request.getSession().setAttribute("flashError", "Gagal memuat tagihan. Silakan coba lagi.");
             response.sendRedirect(request.getContextPath() + "/PaymentSettingsServlet?action=checkout");
         }
     }
 
+    private static boolean ownsOrder(Object[] order, User user) {
+        return user.getId() != null && user.getId().equals(order[8]);
+    }
+
     /**
-     * Konfirmasi pembayaran: tandai lunas (idempoten) lalu tambah poin ke dompet.
+     * Konfirmasi pembayaran oleh siswa: hanya untuk tagihan simulasi miliknya sendiri pada
+     * mode sandbox (demo). Tagihan asli dilunasi lewat webhook gateway.
      */
     private void handleConfirmPayment(HttpServletRequest request, HttpServletResponse response, User currentUser)
             throws IOException {
@@ -323,14 +398,26 @@ public class PaymentSettingsServlet extends HttpServlet {
             if (orderId == null || orderId.isBlank()) {
                 throw new IllegalArgumentException("Nomor pesanan tidak valid.");
             }
+            paymentGatewayService.expireStaleOrders();
             Object[] order = paymentGatewayService.findOrder(orderId);
-            if (order == null || ((Integer) currentUser.getId()).intValue() == 0) {
+            if (order == null || !ownsOrder(order, currentUser)) {
                 throw new IllegalArgumentException("Pesanan tidak ditemukan.");
+            }
+            if (!PaymentGatewayService.canSelfConfirm(Boolean.TRUE.equals(order[7]), paymentGatewayService.isLiveMode())) {
+                throw new IllegalArgumentException(
+                        "Pesanan ini dikonfirmasi otomatis setelah pembayaran diterima.");
+            }
+            if ("failed".equalsIgnoreCase(String.valueOf(order[5]))) {
+                throw new IllegalArgumentException(
+                        "Pesanan ini sudah kedaluwarsa atau dibatalkan. Silakan buat pesanan baru.");
             }
             paymentGatewayService.settle(orderId);
             session.setAttribute("flashSuccess", "Pembayaran pesanan " + orderId + " berhasil. Poin sudah ditambahkan.");
-        } catch (Exception e) {
+        } catch (IllegalArgumentException e) {
             session.setAttribute("flashError", "Gagal memproses pembayaran: " + e.getMessage());
+        } catch (Exception e) {
+            LOGGER.log(Level.WARNING, "Gagal memproses konfirmasi pembayaran", e);
+            session.setAttribute("flashError", "Gagal memproses pembayaran. Silakan coba lagi.");
         }
         response.sendRedirect(request.getContextPath()
                 + "/PaymentSettingsServlet?action=pay&orderId=" + java.net.URLEncoder.encode(

@@ -22,6 +22,9 @@
     String flashSuccess = (String) session.getAttribute("flashSuccess");
     if (flashSuccess != null) { session.removeAttribute("flashSuccess"); }
     boolean paid = "completed".equalsIgnoreCase(status);
+    boolean failed = "failed".equalsIgnoreCase(status);
+    boolean canSelfConfirm = Boolean.TRUE.equals(request.getAttribute("canSelfConfirm"));
+    String paymentUrl = (String) request.getAttribute("paymentUrl");
 %>
 <!DOCTYPE html>
 <html lang="id">
@@ -56,12 +59,28 @@
                     <div class="text-muted small">Total tagihan</div>
                     <div class="fs-4 fw-bold">Rp <%= String.format("%,.0f", amount) %></div>
                 </div>
-                <span class="badge <%= paid ? "bg-success" : "bg-warning text-dark" %>">
-                    <%= paid ? "Lunas" : "Menunggu pembayaran" %>
+                <span class="badge <%= paid ? "bg-success" : (failed ? "bg-danger" : "bg-warning text-dark") %>">
+                    <%= paid ? "Lunas" : (failed ? "Kedaluwarsa / gagal" : "Menunggu pembayaran") %>
                 </span>
             </div>
 
-            <% if (!paid) { %>
+            <% if (failed) { %>
+                <div class="text-center py-3">
+                    <i class="bi bi-x-circle-fill text-danger fs-1"></i>
+                    <p class="mt-2 mb-1 fw-semibold">Pesanan tidak dibayar</p>
+                    <p class="text-muted small">Batas waktu pembayaran sudah lewat atau pembayaran gagal. Silakan buat pesanan baru.</p>
+                    <a href="<%= ctx %>/PaymentSettingsServlet?action=checkout" class="btn btn-primary">
+                        <i class="bi bi-wallet2 me-1"></i>Buat Pesanan Baru
+                    </a>
+                </div>
+            <% } else if (!paid) { %>
+                <% if (paymentUrl != null && paymentUrl.startsWith("https://")) { %>
+                <div class="d-grid mb-3">
+                    <a href="<%= ValidationUtil.sanitizeHtml(paymentUrl) %>" target="_blank" rel="noopener" class="btn btn-success">
+                        <i class="bi bi-box-arrow-up-right me-1"></i>Buka Halaman Pembayaran
+                    </a>
+                </div>
+                <% } %>
                 <% if (isVa && vaNumber != null) { %>
                 <div class="text-center mb-3">
                     <p class="mb-1 text-muted small">Nomor Virtual Account</p>
@@ -88,7 +107,7 @@
                         </button>
                     </div>
                 </div>
-                <% } else { %>
+                <% } else if (paymentUrl == null) { %>
                 <div class="alert alert-warning">Instruksi pembayaran tidak tersedia. Hubungi pengajar.</div>
                 <% } %>
 
@@ -96,6 +115,7 @@
                     <a href="<%= ctx %>/PaymentSettingsServlet?action=checkout" class="btn btn-outline-secondary flex-fill">
                         <i class="bi bi-arrow-left me-1"></i>Kembali
                     </a>
+                    <% if (canSelfConfirm) { %>
                     <form method="post" action="<%= ctx %>/PaymentSettingsServlet" class="flex-fill m-0">
                         <input type="hidden" name="action" value="confirmPayment">
                         <input type="hidden" name="orderId" value="<%= ValidationUtil.sanitizeHtml(orderId) %>">
@@ -104,13 +124,23 @@
                             <i class="bi bi-check2-circle me-1"></i>Saya sudah membayar
                         </button>
                     </form>
+                    <% } else { %>
+                    <a href="<%= ctx %>/PaymentSettingsServlet?action=pay&orderId=<%= java.net.URLEncoder.encode(orderId, "UTF-8") %>" class="btn btn-primary flex-fill">
+                        <i class="bi bi-arrow-repeat me-1"></i>Cek status pembayaran
+                    </a>
+                    <% } %>
                 </div>
 
-                <% if (Boolean.TRUE.equals(simulated)) { %>
+                <% if (canSelfConfirm) { %>
                 <p class="text-muted small mt-3 mb-0">
                     <i class="bi bi-info-circle me-1"></i>
-                    Mode demo: pengajar belum memasukkan kredensial pembayaran, sehingga tombol
+                    Mode demo: tagihan ini simulasi, sehingga tombol
                     "Saya sudah membayar" langsung menandai pesanan lunas dan menambah poin.
+                </p>
+                <% } else { %>
+                <p class="text-muted small mt-3 mb-0">
+                    <i class="bi bi-info-circle me-1"></i>
+                    Status pesanan diperbarui otomatis setelah pembayaran diterima.
                 </p>
                 <% } %>
             <% } else { %>
@@ -128,7 +158,7 @@
 </div>
 
 <script src="../assets/vendor/bootstrap.bundle.min.js"></script>
-<% if (!paid && (qrString != null) && !isVa) { %>
+<% if (!paid && !failed && (qrString != null) && !isVa) { %>
 <script src="../assets/vendor/qrcode.min.js"></script>
 <script>
     (function () {
