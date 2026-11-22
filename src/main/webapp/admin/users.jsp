@@ -608,8 +608,8 @@
                         <div class="mb-3">
                             <label for="newPin" class="form-label">PIN Baru</label>
                             <input type="password" class="form-control" id="newPin" name="pin" required
-                                   inputmode="numeric" pattern="\d{4,6}" minlength="4" maxlength="6" autocomplete="off">
-                            <small class="text-muted">4-6 digit angka. Siswa login dengan email + PIN ini.</small>
+                                   inputmode="numeric" pattern="\d{6}" minlength="6" maxlength="6" autocomplete="off">
+                            <small class="text-muted">6 digit angka. Siswa login dengan email + PIN ini.</small>
                         </div>
                     </div>
                     <div class="modal-footer">
