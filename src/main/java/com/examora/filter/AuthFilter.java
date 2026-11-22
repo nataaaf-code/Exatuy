@@ -19,6 +19,8 @@ public class AuthFilter implements Filter {
             "/", "/index.jsp", "/login", "/register", "/LoginServlet", "/RegisterServlet",
             // Health-check untuk uptime monitor (PRD #21) — tanpa data sensitif.
             "/health", "/api/v1/health",
+            // Webhook gerbang pembayaran: tanpa sesi, diverifikasi lewat X-Webhook-Token.
+            "/SumopodWebhookServlet",
             "/assets/", "/css/", "/js/", "/images/"
     };
 
